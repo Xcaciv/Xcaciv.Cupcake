@@ -54,6 +54,11 @@ public class Loop
             commands.AddPackageDirectory(this.PackageDirectory);
             commands.LoadCommands();
         }
+        catch (Xcaciv.Command.Exceptions.NoPluginsFoundException ex)
+        {
+            // TODO: download first plugin and GOTO start again! :D
+            throw new Exceptions.LoadingException(ex.Message, ex);
+        }
         catch (Exception ex)
         {
             throw new Exceptions.LoadingException("Unable to load commands.", ex);
