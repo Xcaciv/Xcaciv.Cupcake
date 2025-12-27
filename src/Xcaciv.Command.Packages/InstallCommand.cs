@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using Xcaciv.Command.Core;
-using Xcaciv.Command.Interface;
+﻿using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
 
 namespace Xcaciv.Command.Packages

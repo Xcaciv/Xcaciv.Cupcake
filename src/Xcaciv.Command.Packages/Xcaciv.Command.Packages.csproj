@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="NuGet.Protocol" />
-    <PackageReference Include="Xcaciv.Command.Core" />
+    <PackageReference Include="Xcaciv.Command.Interface" />
   </ItemGroup>
 
 </Project>

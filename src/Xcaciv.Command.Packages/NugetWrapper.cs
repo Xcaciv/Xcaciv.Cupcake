@@ -33,7 +33,6 @@ namespace Xcaciv.Command.Packages
 
         public static async Task<List<NuGet.Versioning.NuGetVersion>> FindPackageVersionsAsync(string packageName, string packageSourceUrl)
         {
-            List<string> packageNames = new List<string>();
             var cache = new SourceCacheContext();
 
             var nugetSource = new PackageSource(packageSourceUrl);
