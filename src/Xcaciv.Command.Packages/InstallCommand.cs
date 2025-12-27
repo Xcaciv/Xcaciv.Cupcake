@@ -1,4 +1,5 @@
-﻿using Xcaciv.Command.Interface;
+﻿using Xcaciv.Command.Core;
+using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
 
 namespace Xcaciv.Command.Packages

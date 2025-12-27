@@ -34,6 +34,8 @@ The library emphasizes security through HTTPS-only package sources, input valida
 - View package metadata including versions, descriptions, and dependencies
 - Work with both public NuGet.org and private NuGet feeds
 - Trust that packages come from verified sources
+  - Default to require feed to be over https with valid SSL certificate, optionally disable this feature for self-signed certs
+  - Optionally support package signing and fingerprint verification in future releases
 
 ### 2.3 Non-goals
 
