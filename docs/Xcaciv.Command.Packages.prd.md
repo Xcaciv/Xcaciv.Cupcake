@@ -94,6 +94,15 @@ The library emphasizes security through HTTPS-only package sources, input valida
   - Provide clear progress indicators
   - Roll back failed installations
 
+- **Package Update** (Priority: High)
+  - Update a single package to the latest compatible version from the configured sources.
+  - Support updating to a specific version.
+  - Provide a dry-run option to preview available updates without making changes.
+  - Support “update all” to bring all installed packages to their latest compatible versions, respecting source precedence.
+  - Re-run command compatibility validation post-update and roll back if validation fails.
+  - Preserve user configuration; log updated versions and sources used.
+  - Respect prerelease inclusion flags; avoid downgrades unless explicitly requested.
+
 - **Command compatibility validation** (Priority: Critical)
   - After extraction, scan installed assemblies to verify they reference `Xcaciv.Command.Interface` and contain at least one type implementing `ICommandDelegate`.
   - If no valid command implementations are found, automatically remove the package files and return a clear error message.
@@ -521,3 +530,61 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
   - If no valid implementations are found, the package is removed and a clear message explains why.
   - Validation results are logged; partial installs do not leave residual files.
   - This validation runs consistently for all installs, including specific version installs.
+
+### 10.21. Update a single package to latest
+
+- **ID**: PKG-021
+- **Description**: As a power user, I want to update a single installed package to the latest compatible version so that I can receive fixes and features.
+- **Acceptance criteria**:
+  - User executes `package update <package_name>`.
+  - System determines current version and queries configured sources for a newer compatible version.
+  - Update succeeds without downgrading; respects prerelease flag.
+  - Post-update validation ensures commands implement `ICommandDelegate`; rollback if validation fails.
+  - Success message shows previous and new version.
+
+### 10.22. Update to a specific version
+
+- **ID**: PKG-022
+- **Description**: As a power user, I want to update a package to a specified version so that I can align with my environment constraints.
+- **Acceptance criteria**:
+  - User executes `package update <package_name> --version <version>`.
+  - System validates the version exists on the configured sources.
+  - Update performs integrity and compatibility validation; rollback on failure.
+  - Clear errors for invalid or unavailable versions.
+
+### 10.23. Dry-run update preview
+
+- **ID**: PKG-023
+- **Description**: As a power user, I want a dry-run update preview so that I can see what would change without modifying my system.
+- **Acceptance criteria**:
+  - User executes `package update --dry-run` (for all) or `package update <name> --dry-run` (single).
+  - System lists packages with available newer versions and target versions per source precedence.
+  - No files are changed; output is compatible with normal verbosity settings.
+
+### 10.24. Update all installed packages
+
+- **ID**: PKG-024
+- **Description**: As a power user, I want to update all installed packages to their latest compatible versions so that my environment stays current.
+- **Acceptance criteria**:
+  - User executes `package update --all`.
+  - System iterates installed packages, applies updates respecting source precedence and prerelease flags.
+  - Each update undergoes validation; failures roll back only the failing package.
+  - Summary output lists updated packages and versions; errors are clearly reported.
+
+### 10.25. Roll back failed update
+
+- **ID**: PKG-025
+- **Description**: As a power user, I want update operations to roll back on failure so that my environment remains consistent.
+- **Acceptance criteria**:
+  - Any update failure (download error, integrity failure, validation failure) triggers rollback to the previous version.
+  - Partial files are cleaned up; previous package remains functional.
+  - Logs record failure reason and rollback outcome.
+
+### 10.26. Handle dependency updates
+
+- **ID**: PKG-026
+- **Description**: As a power user, I want dependent packages to update correctly so that commands continue to work after updates.
+- **Acceptance criteria**:
+  - Dependency graph is respected; required dependencies are updated as needed.
+  - Avoid version conflicts; report when constraints prevent updates.
+  - Validation runs after dependency updates; rollback on breaking changes.
