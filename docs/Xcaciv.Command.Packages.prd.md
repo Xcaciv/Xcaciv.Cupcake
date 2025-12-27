@@ -9,7 +9,7 @@
 
 ### 1.2 Product summary
 
-Xcaciv.Command.Packages is a specialized NuGet package management library designed to provide fast, easy-to-use package installation and removal functionality for Xcaciv.Cupcake.Core. The project bridges the gap between the NuGet ecosystem and the Xcaciv.Command framework, enabling seamless discovery, installation, and management of command packages distributed via third-party NuGet servers and feeds.
+Xcaciv.Command.Packages is a specialized NuGet package management library designed to provide fast, easy-to-use package search, installation and removal functionality for Xcaciv.Cupcake.Core. The project bridges the gap between the NuGet ecosystem and the Xcaciv.Command framework, enabling seamless discovery, installation, and management of command packages distributed via third-party NuGet servers and feeds.
 
 This standalone library implements the Xcaciv.Command.ICommandDelegate interface, providing native package management commands (Search, Install) that integrate directly into the Xcaciv.Cupcake command execution loop. By moving to its own repository with an independent release cadence, Xcaciv.Command.Packages can evolve rapidly to address NuGet API changes, security updates, and user feature requests without impacting the core Xcaciv.Cupcake platform.
 
@@ -64,11 +64,7 @@ The library emphasizes security through HTTPS-only package sources, input valida
 
 - **Integration Engineer**: Developers embedding package management capabilities into applications using the Xcaciv.Command framework, requiring a clean API and minimal dependencies.
 
-### 3.3 Role-based access
-
-- **Administrator**: Configure package sources, install/remove packages, view detailed package metadata, access verbose logging
-- **Power User**: Search for packages, install packages to user directory, view basic package information
-- **Read-Only User**: Search for packages, view package information (cannot install or remove)
+<!-- Role-based access definitions removed; authorization is governed by the consuming application's hosting context -->
 
 ## 4. Functional requirements
 
@@ -81,6 +77,11 @@ The library emphasizes security through HTTPS-only package sources, input valida
   - Support verbosity levels: quiet, normal, detailed
   - Enforce HTTPS-only package sources for security
 
+- **Package discovery** (Priority: High)
+  - Present clear discovery results that help users identify command packages compatible with the Xcaciv.Command framework.
+  - Display helpful metadata (e.g., package description, latest version, authors) to aid decision-making.
+  - Optionally surface compatibility indicators when available (e.g., tags or manifest hints) without downloading packages.
+
 - **Package Installation** (Priority: Critical)
   - Install packages from configured NuGet sources
   - Download package to local cache
@@ -90,6 +91,11 @@ The library emphasizes security through HTTPS-only package sources, input valida
   - Support specific version installation
   - Provide clear progress indicators
   - Roll back failed installations
+
+- **Command compatibility validation** (Priority: Critical)
+  - After extraction, scan installed assemblies to verify they reference `Xcaciv.Command.Interface` and contain at least one type implementing `ICommandDelegate`.
+  - If no valid command implementations are found, automatically remove the package files and return a clear error message.
+  - Log validation outcomes for auditability and troubleshooting.
 
 - **Package Removal** (Priority: High)
   - Uninstall packages by name
@@ -251,6 +257,12 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
 - Handling very large packages (>100MB)
 - Gracefully degrading when package sources unavailable
 - Maintaining compatibility with Xcaciv.Command framework updates
+
+### 8.5 Usage and hosting context
+
+- **Consumption model**: `Xcaciv.Command.Packages` is consumed via NuGet by applications like `Xcaciv.Cupcake` and is typically used in user-space console scenarios.
+- **Authorization responsibility**: Authorization and authentication are the responsibility of the consuming host (console app, Windows service, web API). This library does not impose a global role model and relies on the host to enforce context-appropriate security.
+- **Security posture**: The library enforces HTTPS-only sources, input validation, and safe error handling; hosts should add additional controls (e.g., API auth, service account permissions) as required by their environment.
 
 ## 9. Milestones & sequencing
 
@@ -461,3 +473,23 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
   - Removed commands no longer available
   - Success message confirms removal
   - Error if package not found
+
+### 10.17. Discover compatible command packages
+
+- **ID**: PKG-017
+- **Description**: As a power user, I want search results to help me discover command packages compatible with Xcaciv.Command so that I can confidently expand my environment.
+- **Acceptance criteria**:
+  - Search results show key metadata (name, latest version, description, authors).
+  - When available, results surface compatibility indicators (tags or manifest hints) without requiring a download.
+  - Results respect verbosity settings (quiet/normal/detailed).
+  - Results render within 5 seconds for typical queries.
+
+### 10.18. Validate installed package contains commands and remove if not
+
+- **ID**: PKG-018
+- **Description**: As a system administrator, I want the system to verify that installed packages contain `ICommandDelegate` implementations and automatically remove packages that do not so that only functional command packages remain.
+- **Acceptance criteria**:
+  - After installation, the system scans assemblies for a reference to `Xcaciv.Command.Interface` and types implementing `ICommandDelegate`.
+  - If no valid implementations are found, the package is removed and a clear message explains why.
+  - Validation results are logged; partial installs do not leave residual files.
+  - This validation runs consistently for all installs, including specific version installs.
