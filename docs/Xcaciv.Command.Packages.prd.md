@@ -81,7 +81,7 @@ The library emphasizes security through HTTPS-only package sources, input valida
 
 - **Package discovery** (Priority: High)
   - Present clear discovery results that help users identify command packages compatible with the Xcaciv.Command framework.
-  - Display helpful metadata (e.g., package description, latest version, authors) to aid decision-making.
+  - Display helpful metadata (e.g., package description, latest version, authors, external dependencies) to aid decision-making.
   - Optionally surface compatibility indicators when available (e.g., tags or manifest hints) without downloading packages.
 
 - **Package Installation** (Priority: Critical)
@@ -112,6 +112,10 @@ The library emphasizes security through HTTPS-only package sources, input valida
   - Validate package source URLs (HTTPS required)
   - Store source credentials securely
   - List configured package sources
+  - Persist sources in a library-specific configuration file (e.g., `Xcaciv.Command.Packages.config.json`) stored in user-space; do not read or write standard global `NuGet.Config`.
+  - Provide commands to add, remove, list, and set the default source; changes must be immediately reflected in the config file.
+  - Support precedence: default source first, then additional sources in declared order; environment overrides take precedence over file settings.
+  - Never store credentials in the config file; use environment variables or OS-secure stores (e.g., Windows Credential Manager).
 
 - **Security and Validation** (Priority: Critical)
   - Validate all input parameters (package names, search terms, URLs)
@@ -168,10 +172,11 @@ The library emphasizes security through HTTPS-only package sources, input valida
 
 ### 5.3 Advanced features & edge cases
 
-- Prerelease package filtering with --prerelease flag
+- Prerelease package filtering with --prerelease flag to include prerelease versions in search results
+- Specific version installation using --version parameter
 - Verbosity control (quiet, normal, detailed) for different use cases
 - Result limit clamping prevents abuse (enforced max: 100)
-- Timeout handling for slow or unresponsive package sources
+- Timeout handling for slow or unresponsive package sources (default: 30 seconds)
 - Retry logic for transient network failures
 - Cancellation support for long-running operations
 - Package source fallback when primary source unavailable
@@ -180,16 +185,16 @@ The library emphasizes security through HTTPS-only package sources, input valida
 
 - Tabular output for search results with aligned columns
 - Progress indicators during package download
-- Color-coded output (if used in Xcaciv.Cupcake console context)
+- Optional Color-coded output (if used in Xcaciv.Cupcake console context)
 - Clear success/error messages with actionable guidance
 - Consistent command syntax following Xcaciv.Command conventions
 - Inline parameter validation with immediate feedback
 
 ## 6. Narrative
 
-Marcus, a command developer, has just published his first Xcaciv.Command package to a private NuGet feed. He wants to test the installation experience. He configures the package source URL in his environment, then searches for his package: `Package.Search MyCustomCommand`. His package appears in the results immediately, with the description he carefully crafted.
+Marcus, a command developer, has just published his first Xcaciv.Command package to a private NuGet feed. He wants to test the installation experience. He configures the package source URL in his environment, then searches for his package: `package search MyCustomCommand`. His package appears in the results immediately, with the description he carefully crafted.
 
-He installs it with `Package.Install MyCustomCommand`, and within seconds, the package downloads, validates, and installs. He immediately tests his new command—it works perfectly. When he discovers a bug and publishes an update, he simply reinstalls the package to get the latest version.
+He installs it with `package install MyCustomCommand`, and within seconds, the package downloads, validates, and installs. He immediately tests his new command and it works perfectly. When he discovers a bug and publishes an update, he simply updates the package to get the latest version.
 
 Later, Marcus recommends his package to colleagues. They configure the same private feed URL and can search for and install his package just as easily. When the company decides to migrate to a different NuGet server, Marcus only needs to update the package source URL—everything else continues to work seamlessly.
 
@@ -235,10 +240,11 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
 ### 8.2 Data storage & privacy
 
 - Package cache stored in local file system
-- No telemetry or usage tracking
+- no telemetry or usage tracking (perhaps in future releases)
 - Package source credentials stored securely via environment context
 - Search queries not logged or transmitted except to configured NuGet sources
 - Downloaded packages validated before extraction
+- Library-specific configuration file (e.g., `Xcaciv.Command.Packages.config.json`) persisted in user-space and isolated from the global `NuGet.Config`; file contains non-secret source metadata only.
 
 ### 8.3 Scalability & performance
 
@@ -252,7 +258,7 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
 ### 8.4 Potential challenges
 
 - NuGet API versioning and backward compatibility
-- Handling complex dependency trees
+- Handling complex dependency trees (commands are typically standalone)
 - Managing package conflicts when multiple versions exist
 - Supporting different target frameworks in packages
 - Authenticating to private NuGet feeds securely
@@ -475,6 +481,26 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
   - Removed commands no longer available
   - Success message confirms removal
   - Error if package not found
+
+### 10.19. Configure and persist custom NuGet sources (library-specific)
+
+- **ID**: PKG-019
+- **Description**: As a power user, I want to configure NuGet sources and have them saved in a library-specific configuration file so that my setup is isolated from global NuGet settings.
+- **Acceptance criteria**:
+  - User can add, remove, list, and set a default source via package commands.
+  - Sources persist to a user-space config file (e.g., `Xcaciv.Command.Packages.config.json`).
+  - Config file contains only non-secret metadata; credentials are never stored in the file.
+  - Environment variables can override file-defined sources.
+
+### 10.20. Set source precedence and default
+
+- **ID**: PKG-020
+- **Description**: As a power user, I want to define a default source and precedence so that search and install operations use the correct order of sources.
+- **Acceptance criteria**:
+  - Default source is used first; additional sources are used in declared order.
+  - Changing the default updates the config file immediately.
+  - Environment overrides take precedence over file settings.
+  - Operations log which source was used for traceability.
 
 ### 10.17. Discover compatible command packages
 
