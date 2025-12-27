@@ -25,6 +25,7 @@ The platform follows a classic n-tier architecture with separated UI and backend
 - Maintain independent release cadence for core components and extension packages
 - Provide high-performance command execution, especially for network-based operations
 - Build a secure platform with certificate validation and package signature verification
+- Distribute the console app as a `dotnet tool` for easy installation (`dotnet tool install`)
 
 ### 2.2 User goals
 
@@ -66,12 +67,7 @@ The platform follows a classic n-tier architecture with separated UI and backend
 
 - **DevOps Engineer**: Automation specialists who use the platform in CI/CD pipelines, orchestration workflows, and infrastructure management scripts requiring consistent, repeatable command execution.
 
-### 3.3 Role-based access
-
-- **Administrator**: Full access to install/remove commands, configure package sources, manage certificate validation, and modify system-wide settings
-- **Power User**: Execute installed commands, configure personal environment settings, manage user-level package installations
-- **Command Developer**: Access to framework interfaces, development documentation, testing tools, and package publishing workflows
-- **Read-Only User**: Execute pre-installed commands without modification or installation privileges
+<!-- Role-based access intentionally omitted for console UI; authorization is hosting-context specific -->
 
 ## 4. Functional requirements
 
@@ -256,6 +252,19 @@ When her team needs a web interface, they expose Xcaciv.Cupcake.Core through a W
 - Handling versioning and dependency resolution for command packages
 - Securing command execution in multi-tenant web API scenarios
 - Debugging command failures across different execution contexts
+
+### 8.5 Implementation details
+
+- **Project roles**: `Xcaciv.Cupcake.Core` provides the UI-less command-processing functionality; `Xcaciv.Cupcake` is the console UI that references `Xcaciv.Cupcake.Core` and the `Xcaciv.Command.Packages` library via NuGet; `Xcaciv.Cupcake.Lit` is a testing harness that references `Xcaciv.Cupcake.Core` via a project reference and includes a small subset of commands directly referenced for targeted testing.
+- **Dynamic command loading**: `Xcaciv.Cupcake` loads all non-built-in commands dynamically from installed packages at runtime. The only external command library referenced at compile time is `Xcaciv.Command.Packages`, brought in via a NuGet package reference to enable search/install/remove operations.
+- **Built-in vs external commands**: Built-in commands ship with `Xcaciv.Cupcake.Core` and are always available. External commands are discovered and loaded from the configured packages directory and NuGet-installed packages.
+- **Testing harness scope**: `Xcaciv.Cupcake.Lit` purposefully limits the set of directly referenced commands to a small subset to keep tests fast, deterministic, and focused on core behaviors; broader command coverage is exercised via dynamic loading scenarios.
+
+### 8.6 Deployment and security model
+
+- **Console UI (user-space)**: `Xcaciv.Cupcake` is intended to install and run in user-space (including distribution as a `dotnet tool`). No elevation is required; commands execute under the current OS user context, and filesystem paths default to user directories.
+- **Future interfaces (hosted contexts)**: Windows services, web APIs, remote shells, and other hosted interfaces must implement authentication and authorization appropriate to their hosting framework and deployment environment (e.g., service accounts, ASP.NET Core auth). The project does not mandate a global role model; authorization is context-specific.
+- **Sensitive operations**: Operations impacting system resources or external services must perform permission checks based on the active hosting context and log security-relevant events.
 
 ## 9. Milestones & sequencing
 
@@ -464,14 +473,13 @@ When her team needs a web interface, they expose Xcaciv.Cupcake.Core through a W
   - Invalid paths handled with clear error messages
   - Packages loaded from configured directory on startup
 
-### 10.16. Authentication and authorization
+### 10.16. Authentication and authorization (hosting-context specific)
 
 - **ID**: CUP-016
-- **Description**: As a system administrator, I want to control who can execute commands and install packages so that I can enforce security policies.
+- **Description**: As a system administrator, I want security controls to align with the hosting context so that sensitive operations are protected without imposing a one-size-fits-all role model.
 - **Acceptance criteria**:
-  - User authentication required for sensitive operations
-  - Role-based authorization for command execution
-  - Administrator role required to install/remove packages
-  - Package installation can be disabled entirely
-  - Authorization checks logged for audit
-  - Unauthorized attempts return clear error messages
+  - Console UI runs in user-space under the current OS user; sensitive operations require explicit confirmation or policy configuration.
+  - Windows service deployments enforce authorization via service account permissions and OS policies.
+  - Web API deployments use the hosting framework’s authentication and authorization (e.g., ASP.NET Core), including API keys, OAuth, or enterprise identity.
+  - Package installation can be disabled or restricted by configuration, depending on hosting context.
+  - Security-relevant actions are audited; unauthorized attempts return clear error messages without exposing sensitive details.
