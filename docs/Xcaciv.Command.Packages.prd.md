@@ -125,6 +125,7 @@ The library emphasizes security through HTTPS-only package sources, input valida
   - Provide commands to add, remove, list, and set the default source; changes must be immediately reflected in the config file.
   - Support precedence: default source first, then additional sources in declared order; environment overrides take precedence over file settings.
   - Never store credentials in the config file; use environment variables or OS-secure stores (e.g., Windows Credential Manager).
+  - **External Dependencies Policy** (Priority: High): Provide a configuration setting (`AllowExternalDependencies`) to control whether external NuGet packages (transitive dependencies) are allowed when installing command packages. Default to `false` (strict mode) to ensure command packages are self-contained or only depend on framework libraries. When enabled, document the security implications and require explicit user acknowledgment during installation.
 
 - **Security and Validation** (Priority: Critical)
   - Validate all input parameters (package names, search terms, URLs)
@@ -133,6 +134,7 @@ The library emphasizes security through HTTPS-only package sources, input valida
   - Sanitize search terms to prevent injection attacks
   - Validate package source URLs before connection
   - Handle network errors gracefully without exposing sensitive information
+  - Enforce external dependencies policy during package installation; reject packages with unallowed external dependencies and provide clear guidance on remediation
 
 - **Integration with Xcaciv.Command Framework** (Priority: Critical)
   - Implement ICommandDelegate interface for all commands
@@ -588,3 +590,15 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
   - Dependency graph is respected; required dependencies are updated as needed.
   - Avoid version conflicts; report when constraints prevent updates.
   - Validation runs after dependency updates; rollback on breaking changes.
+
+### 10.27. Control external dependencies policy
+
+- **ID**: PKG-027
+- **Description**: As a system administrator, I want to control whether command packages can have external NuGet dependencies so that I can enforce a strict security and maintainability policy.
+- **Acceptance criteria**:
+  - `AllowExternalDependencies` setting defaults to `false` (strict mode).
+  - When `false`, packages with external NuGet dependencies are rejected during installation with a clear error message.
+  - When `true`, packages with external dependencies are allowed; installation displays a warning about transitive dependencies.
+  - Setting is configurable via environment variable or persistent configuration file.
+  - Installation attempts on a package with disallowed external dependencies show actionable guidance (e.g., "Contact package maintainer to make this package self-contained").
+  - Audit logs record all installations that involve external dependencies for compliance tracking.
