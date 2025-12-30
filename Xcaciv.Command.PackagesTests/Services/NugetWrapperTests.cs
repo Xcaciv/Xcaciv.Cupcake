@@ -3,9 +3,9 @@ using NuGet.Packaging.Core;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
-using Xcaciv.Command.Packages;
+using Xcaciv.Command.Packages.Services;
 
-namespace Xcaciv.Command.PackagesTests
+namespace Xcaciv.Command.PackagesTests.Services
 {
     public class NugetWrapperTests
     {

@@ -5,16 +5,17 @@ using NuGet.Protocol.Core.Types;
 using Xcaciv.Command.Core;
 using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
+using Xcaciv.Command.Packages.Services;
 
-namespace Xcaciv.Command.Packages
+namespace Xcaciv.Command.Packages.Commands
 {
-    [CommandRoot("Package", "Package commands")]
-    [CommandRegister("Search", "install a package")]
+    [CommandRoot("Package", "Package management commands")]
+    [CommandRegister("Search", "find a package")]
     [CommandParameterOrdered("search_terms", "String associated to the desired package.", IsRequired = true)]
-    [CommandParameterNamed("source", "The source to search for the package.")]
-    [CommandParameterNamed("take", "Limit the number of results to return.", DefaultValue = "20")]
+    [CommandFlag("prerelease", "Include prerelease packages")]
+    [CommandParameterNamed("source", "Package source URL (HTTPS)")]
     [CommandParameterNamed("verbosity", "The level of detail to display in the output.", AllowedValues = ["quiet", "normal", "detailed"], DefaultValue = "normal")]
-    [CommandFlag("prerelease", "Include prerelease packages in the search results.")]
+    [CommandParameterNamed("take", "Limit the number of results to return.", DefaultValue = "20")]
     public class SearchCommand : AbstractCommand
     {
         public override string HandleExecution(string[] parameters, IEnvironmentContext env)
