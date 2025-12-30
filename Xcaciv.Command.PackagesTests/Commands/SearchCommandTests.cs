@@ -1,8 +1,6 @@
-using Xcaciv.Command;
-using Xcaciv.Command.Interface;
-using Xcaciv.Command.Packages;
+using Xcaciv.Command.Packages.Commands;
 
-namespace Xcaciv.Command.PackagesTests
+namespace Xcaciv.Command.PackagesTests.Commands
 {
     public class SearchCommandTests
     {

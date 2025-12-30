@@ -13,7 +13,7 @@ using NuGet.Packaging.Core;
 using NuGet.Frameworks;
 using System.Threading;
 
-namespace Xcaciv.Command.Packages
+namespace Xcaciv.Command.Packages.Services
 {
     public class NugetWrapper
     {

@@ -421,7 +421,7 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
   - Non-numeric --take values rejected
   - Invalid --verbosity values rejected
   - Special characters in search terms sanitized
-  - SQL injection attempts neutralized
+  - SQL injection (and injection in general) attempts neutralized
 
 ### 10.11. Enforce HTTPS package sources
 
@@ -523,7 +523,7 @@ Later, Marcus recommends his package to colleagues. They configure the same priv
   - Results respect verbosity settings (quiet/normal/detailed).
   - Results render within 5 seconds for typical queries.
 
-### 10.18. Validate installed package contains commands and remove if not
+### 10.18. Validate installed package contains commands and remove or prevent installation if not
 
 - **ID**: PKG-018
 - **Description**: As a system administrator, I want the system to verify that installed packages contain `ICommandDelegate` implementations and automatically remove packages that do not so that only functional command packages remain.
