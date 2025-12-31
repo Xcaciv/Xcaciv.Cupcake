@@ -5,9 +5,9 @@
   <!-- Applicaiton Versions -->
   <ItemGroup>
     <PackageVersion Include="NuGet.Protocol" Version="7.0.1" />
-    <PackageVersion Include="Xcaciv.Command" Version="2.1.1" />
+    <PackageVersion Include="Xcaciv.Command" Version="3.0.0" />
     <PackageVersion Include="Xcaciv.Command.Core" Version="2.1.0" />
-    <PackageVersion Include="Xcaciv.Command.Interface" Version="2.1.0" />
+    <PackageVersion Include="Xcaciv.Command.Interface" Version="3.0.0" />
   </ItemGroup>
   <!-- Unit Test Versions -->
   <ItemGroup>

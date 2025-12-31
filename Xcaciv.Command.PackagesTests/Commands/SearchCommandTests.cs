@@ -10,10 +10,11 @@ namespace Xcaciv.Command.PackagesTests.Commands
             // Arrange
             var command = new SearchCommand();
             var parameters = new string[] { "XCBatch" };
-            var env = new EnvironmentContext(); 
+            var env = new EnvironmentContext();
+            var processedParams = command.ProcessParameters(parameters);
 
             // Act
-            var result = command.HandleExecution(parameters, env);
+            var result = command.HandleExecution(processedParams, env);
 
             // Assert
             Assert.NotNull(result);
@@ -27,8 +28,9 @@ namespace Xcaciv.Command.PackagesTests.Commands
             var command = new SearchCommand();
             var parameters = new string[] { "XCBatch", "-verbosity", "normal", "-take", "2" };
             var env = new EnvironmentContext();
+            var processedParams = command.ProcessParameters(parameters);
 
-            var result = command.HandleExecution(parameters, env);
+            var result = command.HandleExecution(processedParams, env);
 
             Assert.NotNull(result);
             // normal includes id, version, summary separated by spaces and colon
@@ -42,8 +44,9 @@ namespace Xcaciv.Command.PackagesTests.Commands
             var command = new SearchCommand();
             var parameters = new string[] { "XCBatch", "-verbosity", "quiet", "-take", "2" };
             var env = new EnvironmentContext();
+            var processedParams = command.ProcessParameters(parameters);
 
-            var result = command.HandleExecution(parameters, env);
+            var result = command.HandleExecution(processedParams, env);
 
             Assert.NotNull(result);
             // Quiet should not include version or summary markers
@@ -57,8 +60,9 @@ namespace Xcaciv.Command.PackagesTests.Commands
             var command = new SearchCommand();
             var parameters = new string[] { "XCBatch", "-verbosity", "detailed", "-take", "2" };
             var env = new EnvironmentContext();
+            var processedParams = command.ProcessParameters(parameters);
 
-            var result = command.HandleExecution(parameters, env);
+            var result = command.HandleExecution(processedParams, env);
 
             Assert.NotNull(result);
             Assert.Contains("Published:", result);
@@ -72,8 +76,9 @@ namespace Xcaciv.Command.PackagesTests.Commands
             var command = new SearchCommand();
             var parameters = new string[] { "XCBatch", "-prerelease", "-take", "5" };
             var env = new EnvironmentContext();
+            var processedParams = command.ProcessParameters(parameters);
 
-            var result = command.HandleExecution(parameters, env);
+            var result = command.HandleExecution(processedParams, env);
 
             Assert.NotNull(result);
             Assert.Contains("XCBatch", result);
@@ -86,8 +91,9 @@ namespace Xcaciv.Command.PackagesTests.Commands
             var parameters = new string[] { "XCBatch", "-take", "3" };
             var env = new EnvironmentContext();
             env.SetValue("PackageSourceUrl", "https://api.nuget.org/v3/index.json");
+            var processedParams = command.ProcessParameters(parameters);
 
-            var result = command.HandleExecution(parameters, env);
+            var result = command.HandleExecution(processedParams, env);
 
             Assert.NotNull(result);
             Assert.Contains("XCBatch", result);
@@ -99,8 +105,9 @@ namespace Xcaciv.Command.PackagesTests.Commands
             var command = new SearchCommand();
             var parameters = new string[] { "XCBatch", "-take", "1" };
             var env = new EnvironmentContext();
+            var processedParams = command.ProcessParameters(parameters);
 
-            var result = command.HandleExecution(parameters, env);
+            var result = command.HandleExecution(processedParams, env);
 
             Assert.NotNull(result);
             var lines = result.Split('\n');
@@ -114,9 +121,10 @@ namespace Xcaciv.Command.PackagesTests.Commands
             var command = new SearchCommand();
             var parameters = new string[] { "cake.nuget", "-verbosity", "normal" };
             var env = new EnvironmentContext();
+            var processedParams = command.ProcessParameters(parameters);
 
             // Act
-            var result = command.HandleExecution(parameters, env);
+            var result = command.HandleExecution(processedParams, env);
 
             // Assert
             Assert.NotNull(result);
@@ -128,8 +136,9 @@ namespace Xcaciv.Command.PackagesTests.Commands
         {
             var command = new SearchCommand();
             var env = new EnvironmentContext();
+            var processedParams = command.ProcessParameters(new[] { "param1", "param2" });
 
-            var result = command.HandlePipedChunk("some-chunk", new[] { "param1", "param2" }, env);
+            var result = command.HandlePipedChunk("some-chunk", processedParams, env);
 
             Assert.Contains("Unsupported search method", result);
             Assert.Contains("some-chunk", result);

@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Xcaciv.Command.Packages\Xcaciv.Command.Packages.csproj" />
     <ProjectReference Include="..\Xcaciv.Cupcake.Core\Xcaciv.Cupcake.Core.csproj" />
   </ItemGroup>
 
