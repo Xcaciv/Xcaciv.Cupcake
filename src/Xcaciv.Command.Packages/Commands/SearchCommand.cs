@@ -5,6 +5,7 @@ using NuGet.Protocol.Core.Types;
 using Xcaciv.Command.Core;
 using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
+using Xcaciv.Command.Interface.Parameters;
 using Xcaciv.Command.Packages.Services;
 
 namespace Xcaciv.Command.Packages.Commands
@@ -18,10 +19,8 @@ namespace Xcaciv.Command.Packages.Commands
     [CommandParameterNamed("take", "Limit the number of results to return.", DefaultValue = "20")]
     public class SearchCommand : AbstractCommand
     {
-        public override string HandleExecution(string[] parameters, IEnvironmentContext env)
+        public override string HandleExecution(Dictionary<string, IParameterValue> parameters, IEnvironmentContext env)
         {
-            var parameterDictionary = this.ProcessParameters(parameters);
-
             var packageSourceUrl = env.GetValue("PackageSourceUrl");
             // default to nuget.org
             if (string.IsNullOrEmpty(packageSourceUrl))
@@ -42,12 +41,15 @@ namespace Xcaciv.Command.Packages.Commands
             List<string> searchResult = [];
 
             // Clamp limit to prevent abuse
-            var requestedTake = int.Parse(parameterDictionary["take"]);
+            var takeParam = parameters["take"];
+            var takeStr = takeParam.GetType().GetProperty("RawValue")?.GetValue(takeParam)?.ToString() ?? "20";
+            var requestedTake = int.Parse(takeStr);
             int limit = Math.Clamp(requestedTake, 1, 100);
-            bool prerelease = parameterDictionary.ContainsKey("prerelease");
+            bool prerelease = parameters.ContainsKey("prerelease");
 
             // Validate search terms
-            var searchTerms = parameterDictionary["search_terms"].Trim();
+            var searchTermsParam = parameters["search_terms"];
+            var searchTerms = (searchTermsParam.GetType().GetProperty("RawValue")?.GetValue(searchTermsParam)?.ToString() ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(searchTerms))
             {
                 return string.Empty;
@@ -59,7 +61,13 @@ namespace Xcaciv.Command.Packages.Commands
 
             var tmpResult = NugetWrapper.FindPackageAsync(searchTerms, repository, limit, prerelease).Result;
 
-            var verbosity = parameterDictionary.ContainsKey("verbosity") ? parameterDictionary["verbosity"] : "normal";
+            var verbosity = "normal";
+            if (parameters.ContainsKey("verbosity"))
+            {
+                var verbosityParam = parameters["verbosity"];
+                verbosity = verbosityParam.GetType().GetProperty("RawValue")?.GetValue(verbosityParam)?.ToString() ?? "normal";
+            }
+            
             switch (verbosity)
             {
                 case "quiet":
@@ -85,9 +93,9 @@ namespace Xcaciv.Command.Packages.Commands
             return string.Join("\n", searchResult);
         }
 
-        public override string HandlePipedChunk(string pipedChunk, string[] parameters, IEnvironmentContext env)
+        public override string HandlePipedChunk(string pipedChunk, Dictionary<string, IParameterValue> parameters, IEnvironmentContext env)
         {
-            return $"Unsupported search method for {pipedChunk} (piped)" + string.Join(',', parameters);
+            return $"Unsupported search method for {pipedChunk} (piped)" + string.Join(',', parameters.Keys);
         }
 
     }

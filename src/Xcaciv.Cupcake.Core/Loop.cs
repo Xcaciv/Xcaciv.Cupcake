@@ -54,7 +54,7 @@ public class Loop
 
         try
         {
-            controller.EnableDefaultCommands();
+            controller.RegisterBuiltInCommands();
             controller.AddPackageDirectory(this.PackageDirectory);
             controller.LoadCommands();
         }
@@ -121,7 +121,7 @@ public class Loop
     public Loop RunWithDefaults()
     {
 
-        Controller.EnableDefaultCommands();
+        Controller.RegisterBuiltInCommands();
 
         this.Run(new ConsoleContext("Cupcake Console Context", []), Controller, Environment);
         return this;

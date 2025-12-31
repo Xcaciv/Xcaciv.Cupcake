@@ -1,10 +1,10 @@
 ﻿// See https://aka.ms/new-console-template for more information
-//using Xcaciv.Command.Packages;
+using Xcaciv.Command.Packages.Commands;
 
 try
 {
     var commandLoop = new Xcaciv.Cupcake.Core.Loop();
-    //commandLoop.Controller.AddCommand("internal", new InstallCommand());
+    commandLoop.Controller.AddCommand("internal", new SearchCommand());
     //commandLoop.Controller.AddCommand("internal", new SearchCommand());
     commandLoop.RunWithDefaults();
 }
