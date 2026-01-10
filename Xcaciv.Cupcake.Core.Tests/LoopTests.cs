@@ -31,14 +31,14 @@ namespace Xcaciv.Cupcake.Core.Tests
             return Task.FromResult<IIoContext>(child);
         }
 
-        public Task HandleOutputChunk(string chunk) => Task.CompletedTask;
-        public Task OutputChunk(string chunk) => Task.CompletedTask;
+        public Task HandleOutputChunk(IResult<string> chunk) => Task.CompletedTask;
+        public Task OutputChunk(IResult<string> chunk) => Task.CompletedTask;
         public Task<string> PromptForCommand(string prompt) => Task.FromResult("END");
 
-        public void SetOutputPipe(ChannelWriter<string> outputPipe) { }
+        public void SetOutputPipe(ChannelWriter<IResult<string>> outputPipe) { }
         public Task SetOutputPipe(Stream outputPipe) => Task.CompletedTask;
 
-        public void SetInputPipe(ChannelReader<string> inputPipe) { }
+        public void SetInputPipe(ChannelReader<IResult<string>> inputPipe) { }
         public Task SetInputPipe(Stream inputPipe) => Task.CompletedTask;
 
         public void SetOutputEncoder(IOutputEncoder encoder) { }
@@ -49,7 +49,7 @@ namespace Xcaciv.Cupcake.Core.Tests
             PipelineTotalStages = totalStages;
         }
 
-        public async IAsyncEnumerable<string> ReadInputPipeChunks()
+        public async IAsyncEnumerable<IResult<string>> ReadInputPipeChunks()
         {
             yield break;
         }

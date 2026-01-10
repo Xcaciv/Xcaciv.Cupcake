@@ -4,6 +4,7 @@
   </PropertyGroup>
   <!-- Applicaiton Versions -->
   <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
     <PackageVersion Include="NuGet.Protocol" Version="7.0.1" />
     <PackageVersion Include="Xcaciv.Command" Version="3.2.3" />
     <PackageVersion Include="Xcaciv.Command.Core" Version="3.2.3" />
