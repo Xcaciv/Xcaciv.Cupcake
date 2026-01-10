@@ -23,6 +23,8 @@ namespace Xcaciv.Cupcake.Core
         public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.Blue;
         public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
 
+        public ConsoleColor ErrorColor { get; set; } = ConsoleColor.Red;
+
         public ConsoleColor StatusForegroundColor { get; set; } = ConsoleColor.Yellow;
         public ConsoleColor StatusBackgroundColor { get; set; } = ConsoleColor.DarkBlue;
 
@@ -50,12 +52,25 @@ namespace Xcaciv.Cupcake.Core
         /// </summary>
         /// <param name="chunk"></param>
         /// <returns></returns>
-        public override Task HandleOutputChunk(string chunk)
+        public override Task HandleOutputChunk(IResult<string> chunk)
         {
-            Console.ForegroundColor = ForegroundColor;
-            Console.BackgroundColor = BackgroundColor;
-            Console.WriteLine(chunk);
-            Console.ResetColor();
+            var output = chunk.ToString();
+            if (!String.IsNullOrEmpty(output))
+            {
+                if (chunk.IsSuccess)
+                {
+                    Console.ForegroundColor = ForegroundColor;
+                    Console.BackgroundColor = BackgroundColor;
+                }
+                else
+                {
+                    Console.ForegroundColor = ErrorColor;
+                    Console.BackgroundColor = BackgroundColor;
+                }
+                
+                Console.WriteLine(output);
+                Console.ResetColor();
+            }
             return Task.CompletedTask;
         }
         /// <summary>

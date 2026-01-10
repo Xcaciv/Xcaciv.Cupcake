@@ -60,7 +60,7 @@ public class Loop
         }
         catch (Xcaciv.Command.Interface.Exceptions.NoPluginsFoundException)
         {
-            context.OutputChunk("No Plugins Found. You may want to check out `install --help`").Wait();
+            context.OutputChunk(CommandResult<string>.Success("No Plugins Found. You may want to check out `install --help`")).Wait();
             // TODO: download first plugin and GOTO start again! :D
             // throw new Exceptions.LoadingException(ex.Message, ex);
         }

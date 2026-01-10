@@ -1,11 +1,12 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using Xcaciv.Command.Interface;
 using Xcaciv.Command.Packages.Commands;
 
 try
 {
     var commandLoop = new Xcaciv.Cupcake.Core.Loop();
-    commandLoop.Controller.AddCommand("internal", new SearchCommand());
-    //commandLoop.Controller.AddCommand("internal", new SearchCommand());
+    var packageSearchCommand = (ICommandDelegate)new PackageSearchCommand();
+    commandLoop.Controller.AddCommand("search", packageSearchCommand, false);
     commandLoop.RunWithDefaults();
 }
 catch (Exception ex)
@@ -16,4 +17,4 @@ catch (Exception ex)
 }
 
 // TODO:
-//  - 
+//  - //  - 
