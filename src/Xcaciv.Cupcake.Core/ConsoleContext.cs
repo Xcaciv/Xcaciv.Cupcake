@@ -54,7 +54,7 @@ namespace Xcaciv.Cupcake.Core
         /// <returns></returns>
         public override Task HandleOutputChunk(IResult<string> chunk)
         {
-            var output = chunk.ToString();
+            var output = chunk.Output;
             if (!String.IsNullOrEmpty(output))
             {
                 if (chunk.IsSuccess)

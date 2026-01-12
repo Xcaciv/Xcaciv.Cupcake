@@ -14,10 +14,10 @@ using Xcaciv.Command.Packages.Validation;
 [CommandRegister("search", "Search for command packages using natural language terms")]
 [CommandRoot("package", "Manage command packages")]
 [CommandParameterOrdered("terms", "Search terms")]
-[CommandParameterNamed("take", "Number of results to return (default 20, max 100)")]
-[CommandFlag("prerelease", "Include prerelease packages")]
+[CommandParameterNamed("take", "Number of results to return (default 20, max 100)", DataType = typeof(int))]
+[CommandFlag("prerelease", "Include prerelease packages", DataType = typeof(bool))]
 [CommandParameterNamed("source", "Package source URL (HTTPS)")]
-[CommandParameterNamed("verbosity", "quiet|normal|detailed")]
+[CommandParameterNamed("verbosity", "quiet|normal|detailed", AllowedValues = ["quiet", "normal", "detailed"])]
 public class PackageSearchCommand : AbstractCommand
 {
     private readonly ISearchService searchService;
@@ -32,7 +32,7 @@ public class PackageSearchCommand : AbstractCommand
     {
         this.searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         this.configService = configService ?? throw new ArgumentNullException(nameof(configService));
-    }
+    } 
 
     public override IResult<string> HandleExecution(Dictionary<string, IParameterValue> parameters, IEnvironmentContext env)
     {
