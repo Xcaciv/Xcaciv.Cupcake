@@ -3,11 +3,11 @@ namespace Xcaciv.Command.Packages.Commands;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xcaciv.Command.Core;
 using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
 using Xcaciv.Command.Interface.Parameters;
+using Xcaciv.Command.Packages.Abstractions;
 using Xcaciv.Command.Packages.Services;
 using Xcaciv.Command.Packages.Validation;
 
@@ -17,17 +17,27 @@ using Xcaciv.Command.Packages.Validation;
 [CommandParameterNamed("version", "Specific version to install (optional; latest used if omitted)")]
 [CommandParameterNamed("source", "Package source URL (HTTPS)")]
 [CommandParameterNamed("installRoot", "Override installation root directory")]
-public class PackageInstallCommand : AbstractCommand
+public class PackageInstallCommand : AbstractPackageCommand
 {
-    private readonly IInstallService installService;
-    private readonly IPackageSourceConfigService configService;
+    private IInstallService installService;
+    private IPackageSourceConfigService configService;
 
     public PackageInstallCommand()
-        : this(CreateInstallService(), CreateConfigService())
+        : base()
     {
+        installService = CreateInstallService();
+        configService = CreateConfigService();
     }
 
-    public PackageInstallCommand(IInstallService installService, IPackageSourceConfigService configService)
+    public PackageInstallCommand(NuGetIoContextLoggerFactory loggerFactory)
+        : base(loggerFactory)
+    {
+        installService = CreateInstallService();
+        configService = CreateConfigService();
+    }
+
+    public PackageInstallCommand(IInstallService installService, IPackageSourceConfigService configService, NuGetIoContextLoggerFactory loggerFactory)
+        : base(loggerFactory)
     {
         this.installService = installService ?? throw new ArgumentNullException(nameof(installService));
         this.configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -103,9 +113,9 @@ public class PackageInstallCommand : AbstractCommand
         }
     }
 
-    private static IInstallService CreateInstallService()
+    private InstallService CreateInstallService()
     {
-        var logger = NullLogger<NuGetClientFactory>.Instance;
+        var logger = new NuGetIoContextLogger<NuGetClientFactory>();
         var inputValidator = new InputValidator();
         var resolver = new InstallationRootResolver(Environment.CurrentDirectory);
         var clientFactory = new NuGetClientFactory(logger);
@@ -118,11 +128,6 @@ public class PackageInstallCommand : AbstractCommand
             inputValidator,
             commandValidator,
             securityPolicy);
-    }
-
-    private static IPackageSourceConfigService CreateConfigService()
-    {
-        return new PackageSourceConfigService(new InputValidator());
     }
 
 }
