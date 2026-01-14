@@ -3,11 +3,11 @@ namespace Xcaciv.Command.Packages.Commands;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xcaciv.Command.Core;
 using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
 using Xcaciv.Command.Interface.Parameters;
+using Xcaciv.Command.Packages.Abstractions;
 using Xcaciv.Command.Packages.Services;
 using Xcaciv.Command.Packages.Validation;
 
@@ -18,17 +18,27 @@ using Xcaciv.Command.Packages.Validation;
 [CommandFlag("prerelease", "Include prerelease packages", DataType = typeof(bool))]
 [CommandParameterNamed("source", "Package source URL (HTTPS)")]
 [CommandParameterNamed("verbosity", "quiet|normal|detailed", AllowedValues = ["quiet", "normal", "detailed"])]
-public class PackageSearchCommand : AbstractCommand
+public class PackageSearchCommand : AbstractPackageCommand
 {
-    private readonly ISearchService searchService;
-    private readonly IPackageSourceConfigService configService;
+    private ISearchService searchService;
+    private IPackageSourceConfigService configService;
 
     public PackageSearchCommand()
-        : this(CreateSearchService(), CreateConfigService())
+        : base()
     {
+        searchService = CreateSearchService();
+        configService = CreateConfigService();
     }
 
-    public PackageSearchCommand(ISearchService searchService, IPackageSourceConfigService configService)
+    public PackageSearchCommand(NuGetIoContextLoggerFactory loggerFactory)
+        : base(loggerFactory)
+    {
+        searchService = CreateSearchService();
+        configService = CreateConfigService();
+    }
+
+    public PackageSearchCommand(ISearchService searchService, IPackageSourceConfigService configService, NuGetIoContextLoggerFactory loggerFactory)
+        : base(loggerFactory)
     {
         this.searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         this.configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -52,17 +62,12 @@ public class PackageSearchCommand : AbstractCommand
         return CommandResult<string>.Success(Render(results));
     }
 
-    private static ISearchService CreateSearchService()
+    private SearchService CreateSearchService()
     {
-        var logger = NullLogger<NuGetClientFactory>.Instance;
+        var logger = new NuGetIoContextLogger<NuGetClientFactory>();
         var clientFactory = new NuGetClientFactory(logger);
         var inputValidator = new InputValidator();
         return new SearchService(inputValidator, clientFactory);
-    }
-
-    private static IPackageSourceConfigService CreateConfigService()
-    {
-        return new PackageSourceConfigService(new InputValidator());
     }
 
     private static string Render(IReadOnlyList<SearchResult> results)
