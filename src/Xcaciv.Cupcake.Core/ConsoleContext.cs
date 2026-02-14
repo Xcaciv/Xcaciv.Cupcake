@@ -37,8 +37,9 @@ namespace Xcaciv.Cupcake.Core
         /// </summary>
         /// <param name="childParameters"></param>
         /// <returns></returns>
-        public override Task<IIoContext> GetChild(string[]? childParameters = null)
+        public override Task<IIoContext> GetChild()
         {
+            string[]? childParameters = Parameters is null ? null : Parameters.ToArray();
             var child = new ConsoleContext(this.Name + "Child", childParameters, Id);
 
             if (this.HasPipedInput && this.inputPipe != null) child.SetInputPipe(this.inputPipe);
