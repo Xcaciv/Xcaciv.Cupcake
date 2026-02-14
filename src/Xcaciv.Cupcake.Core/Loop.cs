@@ -39,13 +39,13 @@ public class Loop
     /// </summary>
     public string PackageDirectory { get; set; } = @".\packages";
     public ICommandController Controller { get; private set; } = new CommandController();
-    public IEnvironmentContext Environment { get; private set; } = new EnvironmentContext();
+    public IControllerEnvironmentContext Environment { get; private set; } = new ControllerEnvironmentContext();
 
     /// <summary>
     /// run the inputCommand loop synchronously using inputFunc to get the commandline
     /// </summary>
     /// <param name="context"></param>
-    public void Run(IIoContext context, ICommandController controller, IEnvironmentContext env)
+    public void Run(IIoContext context, ICommandController controller, IControllerEnvironmentContext env)
     {
         Controller = controller;
         Environment = env;
@@ -83,7 +83,7 @@ public class Loop
         
     }
 
-    public async Task RunAsync(IIoContext context, ICommandController controller, IEnvironmentContext env)
+    public async Task RunAsync(IIoContext context, ICommandController controller, IControllerEnvironmentContext env)
     {
         Controller = controller;
         Environment = env;

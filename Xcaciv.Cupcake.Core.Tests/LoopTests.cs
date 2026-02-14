@@ -24,10 +24,9 @@ namespace Xcaciv.Cupcake.Core.Tests
             return Task.CompletedTask;
         }
 
-        public Task<IIoContext> GetChild(string[]? childParameters = null)
+        public Task<IIoContext> GetChild()
         {
             var child = new FakeIoContext { Parent = this.Id };
-            if (childParameters != null) child.SetParameters(childParameters);
             return Task.FromResult<IIoContext>(child);
         }
 
@@ -67,57 +66,111 @@ namespace Xcaciv.Cupcake.Core.Tests
     public class FakeController : ICommandController
     {
         public void AddPackageDirectory(string path) { }
-        public void EnableDefaultCommands() { }
         public void RegisterBuiltInCommands() { }
         public void LoadCommands(string? configPath = null) { }
-        public Task Run(string commandLine, IIoContext context, IEnvironmentContext env) => Task.CompletedTask;
-        public Task Run(string commandLine, IIoContext context, IEnvironmentContext env, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task SetIoContext(IIoContext context) => Task.CompletedTask;
-        public Task<IEnumerable<string>> GetCommandNames() => Task.FromResult<IEnumerable<string>>(Array.Empty<string>());
-
-        public void GetHelp(string commandName, IIoContext context, IEnvironmentContext env) { }
-        public Task GetHelpAsync(string commandName, IIoContext context, IEnvironmentContext env, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task Run(string commandLine, IIoContext context, IControllerEnvironmentContext env) => Task.CompletedTask;
+        public Task Run(string commandLine, IIoContext context, IControllerEnvironmentContext env, CancellationToken cancellationToken) => Task.CompletedTask;
         public void AddCommand(ICommandDescription description) { }
         public void AddCommand(string name, Type commandType, bool enabled) { }
         public void AddCommand(string name, ICommandDelegate commandDelegate, bool enabled) { }
     }
 
-    public class FakeEnvironment : IEnvironmentContext, ICommandContext<IEnvironmentContext>, IAsyncDisposable
+    public class FakeEnvironment : IControllerEnvironmentContext, IEnvironmentContext, IAsyncDisposable
     {
-        private readonly Dictionary<string, string> _values = new();
+        private readonly Dictionary<string, string> values = new();
+        private readonly Dictionary<string, Dictionary<string, string>> commandValues = new(StringComparer.OrdinalIgnoreCase);
+        private IAuditLogger? auditLogger;
+
         public bool HasChanged { get; private set; }
         public Guid Id { get; } = Guid.NewGuid();
         public string Name { get; } = "Env";
         public Guid? Parent { get; set; }
 
-        public string GetValue(string key) => _values.TryGetValue(key, out var v) ? v : string.Empty;
+        public string GetValue(string key) => values.TryGetValue(key, out var value) ? value : String.Empty;
         public string GetValue(string key, string defaultValue, bool require)
         {
-            if (_values.TryGetValue(key, out var v)) return v;
+            if (values.TryGetValue(key, out var value)) return value;
             if (require) throw new KeyNotFoundException(key);
             return defaultValue;
         }
-        public Dictionary<string, string> GetEnvinronment() => new(_values);
-        public Dictionary<string, string> GetEnvironment() => new(_values);
+
+        public Dictionary<string, string> GetEnvironment() => new(values);
+        public Dictionary<string, string> GetEnvironment(string commandName)
+        {
+            if (commandValues.TryGetValue(commandName, out var commandEnvironment))
+            {
+                return new(commandEnvironment);
+            }
+
+            return new Dictionary<string, string>();
+        }
+
         public void UpdateEnvironment(Dictionary<string, string> values)
         {
             foreach (var kvp in values)
             {
-                _values[kvp.Key] = kvp.Value;
+                this.values[kvp.Key] = kvp.Value;
             }
-            HasChanged = true;
-        }
-        public void SetValue(string key, string value)
-        {
-            _values[key] = value;
+
             HasChanged = true;
         }
 
-        public Task<IEnvironmentContext> GetChild(string[]? childParameters = null)
+        public void UpdateEnvironment(Dictionary<string, string> values, string commandName)
+        {
+            var commandEnvironment = commandValues.TryGetValue(commandName, out var existing)
+                ? existing
+                : new Dictionary<string, string>();
+
+            foreach (var kvp in values)
+            {
+                commandEnvironment[kvp.Key] = kvp.Value;
+            }
+
+            commandValues[commandName] = commandEnvironment;
+            HasChanged = true;
+        }
+
+        public void SetValue(string key, string value)
+        {
+            values[key] = value;
+            HasChanged = true;
+        }
+
+        public void SetValue(string key, string value, string commandName)
+        {
+            var commandEnvironment = commandValues.TryGetValue(commandName, out var existing)
+                ? existing
+                : new Dictionary<string, string>();
+
+            commandEnvironment[key] = value;
+            commandValues[commandName] = commandEnvironment;
+            HasChanged = true;
+        }
+
+        public Task<IControllerEnvironmentContext> GetChild()
         {
             var child = new FakeEnvironment { Parent = this.Id };
+            child.UpdateEnvironment(GetEnvironment());
+            return Task.FromResult<IControllerEnvironmentContext>(child);
+        }
+
+        Task<IEnvironmentContext> ICommandContext<IEnvironmentContext>.GetChild()
+        {
+            var child = new FakeEnvironment { Parent = this.Id };
+            child.UpdateEnvironment(GetEnvironment());
             return Task.FromResult<IEnvironmentContext>(child);
         }
+
+        public Task<IEnvironmentContext> GetChild(string commandName)
+        {
+            var child = new FakeEnvironment { Parent = this.Id };
+            child.UpdateEnvironment(GetEnvironment(commandName), commandName);
+            return Task.FromResult<IEnvironmentContext>(child);
+        }
+
+        public List<string> GetCommandEnvironmentNames() => commandValues.Keys.ToList();
+
+        public void SetAuditLogger(IAuditLogger auditLogger) => this.auditLogger = auditLogger;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
