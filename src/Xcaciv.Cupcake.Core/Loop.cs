@@ -1,5 +1,6 @@
 ﻿using Xcaciv.Command.Interface;
 using Xcaciv.Command;
+using Xcaciv.Command.Packages.Commands;
 
 namespace Xcaciv.Cupcake.Core;
 
@@ -102,12 +103,11 @@ public class Loop
 
     }
 
-    public Loop RunWithDefaults()
+    public Loop RunInConsoleMode(IControllerEnvironmentContext environment)
     {
-
         Controller.RegisterBuiltInCommands();
-
-        this.Run(new ConsoleContext("Cupcake Console Context", []), Controller, Environment);
+        Controller.AddCommand("search", new PackageSearchCommand(), false);
+        this.Run(new ConsoleContext("Cupcake Console Context", []), Controller, environment);
         return this;
     }
 }
