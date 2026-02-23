@@ -3,6 +3,7 @@ namespace Xcaciv.Command.Packages.Commands;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Xcaciv.Command.Core;
 using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
@@ -42,24 +43,55 @@ public class PackageSearchCommand : AbstractPackageCommand
     {
         this.searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         this.configService = configService ?? throw new ArgumentNullException(nameof(configService));
-    } 
+    }
 
     public override IResult<string> HandleExecution(Dictionary<string, IParameterValue> parameters, IEnvironmentContext env)
     {
-        var settings = this.configService.ResolveSettings(env, parameters);
-
-        var results = this.searchService.SearchAsync(settings.NugetConfig.DefaultSource, settings.Terms, settings.IncludePrerelease, settings.Take, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
-        return CommandResult<string>.Success(Render(results));
+        try
+        {
+            var settings = this.configService.ResolveSettings(env, parameters);
+            var results = this.searchService.SearchAsync(
+                settings.NugetConfig.DefaultSource,
+                settings.Terms,
+                settings.IncludePrerelease,
+                settings.Take,
+                CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+            return CommandResult<string>.Success(Render(results));
+        }
+        catch (ArgumentException ex)
+        {
+            return CommandResult<string>.Failure($"Invalid search parameters: {ex.Message}", ex);
+        }
+        catch (Exception ex)
+        {
+            return CommandResult<string>.Failure($"Search failed: {ex.Message}", ex);
+        }
     }
 
     public override IResult<string> HandlePipedChunk(IResult<string> pipedResult, Dictionary<string, IParameterValue> parameters, IEnvironmentContext env)
     {
-        var pipedText = pipedResult is not null ? pipedResult.ToString() : String.Empty;
-        var settings = this.configService.ResolveSettings(env, parameters);
-        var combinedTerms = String.IsNullOrWhiteSpace(settings.Terms) ? pipedText : $"{settings.Terms} {pipedText}";
+        try
+        {
+            var pipedText = pipedResult is not null ? pipedResult.ToString() : String.Empty;
+            var settings = this.configService.ResolveSettings(env, parameters);
+            var combinedTerms = String.IsNullOrWhiteSpace(settings.Terms) ? pipedText : $"{settings.Terms} {pipedText}";
 
-        var results = this.searchService.SearchAsync(settings.NugetConfig.DefaultSource, combinedTerms ?? String.Empty, settings.IncludePrerelease, settings.Take, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
-        return CommandResult<string>.Success(Render(results));
+            var results = this.searchService.SearchAsync(
+                settings.NugetConfig.DefaultSource,
+                combinedTerms ?? String.Empty,
+                settings.IncludePrerelease,
+                settings.Take,
+                CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+            return CommandResult<string>.Success(Render(results));
+        }
+        catch (ArgumentException ex)
+        {
+            return CommandResult<string>.Failure($"Invalid search parameters: {ex.Message}", ex);
+        }
+        catch (Exception ex)
+        {
+            return CommandResult<string>.Failure($"Search failed: {ex.Message}", ex);
+        }
     }
 
     private SearchService CreateSearchService()
