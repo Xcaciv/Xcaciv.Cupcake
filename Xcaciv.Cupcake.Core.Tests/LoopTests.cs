@@ -73,6 +73,7 @@ namespace Xcaciv.Cupcake.Core.Tests
         public void AddCommand(ICommandDescription description) { }
         public void AddCommand(string name, Type commandType, bool enabled) { }
         public void AddCommand(string name, ICommandDelegate commandDelegate, bool enabled) { }
+        public IControllerEnvironmentContext GetEnvironment() => new FakeEnvironment();
     }
 
     public class FakeEnvironment : IControllerEnvironmentContext, IEnvironmentContext, IAsyncDisposable
@@ -102,6 +103,16 @@ namespace Xcaciv.Cupcake.Core.Tests
                 return new(commandEnvironment);
             }
 
+            return new Dictionary<string, string>();
+        }
+        public Dictionary<string, string> GetEnvironment(string commandName, bool require)
+        {
+            if (commandValues.TryGetValue(commandName, out var commandEnvironment))
+            {
+                return new(commandEnvironment);
+            }
+
+            if (require) throw new KeyNotFoundException($"Environment for command '{commandName}' not found");
             return new Dictionary<string, string>();
         }
 

@@ -29,7 +29,6 @@ namespace Xcaciv.Command.Packages.Commands
 
         public new async IAsyncEnumerable<IResult<string>> Main(IIoContext io, IEnvironmentContext environment)
         {
-            // Set the IIoContext for the logger at the start of execution
             LoggerFactory.SetIoContext(io);
 
             try
@@ -41,7 +40,6 @@ namespace Xcaciv.Command.Packages.Commands
             }
             finally
             {
-                // Clear the IIoContext after execution completes
                 LoggerFactory.ClearIoContext();
             }
         }
