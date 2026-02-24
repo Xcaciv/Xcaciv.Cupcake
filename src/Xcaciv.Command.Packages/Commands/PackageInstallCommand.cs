@@ -8,6 +8,7 @@ using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
 using Xcaciv.Command.Interface.Parameters;
 using Xcaciv.Command.Packages.Abstractions;
+using Xcaciv.Command.Packages.Models;
 using Xcaciv.Command.Packages.Services;
 using Xcaciv.Command.Packages.Validation;
 
@@ -45,25 +46,19 @@ public class PackageInstallCommand : AbstractPackageCommand
 
     public override IResult<string> HandleExecution(Dictionary<string, IParameterValue> parameters, IEnvironmentContext env)
     {
-        var settings = this.configService.ResolveSettings(env, parameters);
-        
         try
         {
-            var result = this.installService.InstallAsync(
-                settings.NugetConfig.DefaultSource,
-                settings.PackageId,
-                settings.Version,
-                settings.InstallRoot,
-                CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+            // Ensure parameters dict is not null
+            if (parameters is null)
+            {
+                parameters = new Dictionary<string, IParameterValue>();
+            }
 
-            if (result.IsSuccess)
-            {
-                return CommandResult<string>.Success(result.Message);
-            }
-            else
-            {
-                return CommandResult<string>.Failure(result.Message);
-            }
+            var settings = this.configService.ResolveSettings(env, parameters);
+            var result = ExecuteInstall(settings);
+            return result.IsSuccess
+                ? CommandResult<string>.Success(result.Message)
+                : CommandResult<string>.Failure(result.Message);
         }
         catch (ArgumentException ex)
         {
@@ -87,30 +82,57 @@ public class PackageInstallCommand : AbstractPackageCommand
             return CommandResult<string>.Failure("Piped package ID cannot be empty");
         }
 
-        var settings = this.configService.ResolveSettings(env, parameters);
-
         try
         {
-            var result = this.installService.InstallAsync(
-                settings.NugetConfig.DefaultSource,
-                pipedPackageId.Trim(),
-                settings.Version,
-                settings.InstallRoot,
-                CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+            // Ensure parameters dict is not null
+            if (parameters is null)
+            {
+                parameters = new Dictionary<string, IParameterValue>();
+            }
 
-            if (result.IsSuccess)
+            var settings = this.configService.ResolveSettings(env, parameters);
+            var modifiedSettings = new PackageSourceSettings
             {
-                return CommandResult<string>.Success(result.Message);
-            }
-            else
-            {
-                return CommandResult<string>.Failure(result.Message);
-            }
+                NugetConfig = settings.NugetConfig,
+                PackageId = pipedPackageId.Trim(),
+                Version = settings.Version,
+                InstallRoot = settings.InstallRoot,
+                Terms = settings.Terms,
+                Take = settings.Take,
+                IncludePrerelease = settings.IncludePrerelease,
+                Verbosity = settings.Verbosity,
+                AllowExternalDependencies = settings.AllowExternalDependencies
+            };
+            var result = ExecuteInstall(modifiedSettings);
+            return result.IsSuccess
+                ? CommandResult<string>.Success(result.Message)
+                : CommandResult<string>.Failure(result.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return CommandResult<string>.Failure($"Invalid input: {ex.Message}", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return CommandResult<string>.Failure($"Installation policy rejected: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
             return CommandResult<string>.Failure($"Installation failed: {ex.Message}", ex);
         }
+    }
+
+    private InstallResult ExecuteInstall(PackageSourceSettings settings)
+    {
+        return this.installService.InstallAsync(
+            settings.NugetConfig.DefaultSource,
+            settings.PackageId,
+            settings.Version,
+            settings.InstallRoot,
+            CancellationToken.None)
+            .ConfigureAwait(false)
+            .GetAwaiter()
+            .GetResult();
     }
 
     private InstallService CreateInstallService()
@@ -129,5 +151,4 @@ public class PackageInstallCommand : AbstractPackageCommand
             commandValidator,
             securityPolicy);
     }
-
 }
