@@ -26,7 +26,7 @@ public class PackageSourceConfigService : IPackageSourceConfigService
 
         var settings = new PackageSourceSettings();
 
-        var configJson = environmentContext.GetValue("XCACIV_PACKAGE_CONFIG_JSON");
+        var configJson = environmentContext.GetValue("PACKAGE_CONFIG_JSON");
         if (!String.IsNullOrWhiteSpace(configJson))
         {
             try
@@ -43,50 +43,36 @@ public class PackageSourceConfigService : IPackageSourceConfigService
             }
         }
 
-        var sourceUrl = environmentContext.GetValue("XCACIV_PACKAGE_SOURCE");
-        if (!String.IsNullOrWhiteSpace(sourceUrl))
-        {
-            settings.NugetConfig.DefaultSource = sourceUrl;
-        }
-
-        var allowExternalStr = environmentContext.GetValue("XCACIV_PACKAGE_ALLOW_EXTERNAL_DEPENDENCIES");
+        var allowExternalStr = environmentContext.GetValue("PACKAGE_ALLOW_EXTERNAL_DEPENDENCIES", "FALSE");
         if (!String.IsNullOrWhiteSpace(allowExternalStr) && Boolean.TryParse(allowExternalStr, out var allowExternal))
         {
             settings.AllowExternalDependencies = allowExternal;
             settings.NugetConfig.AllowExternalDependencies = allowExternal;
         }
 
-        settings.PackageId = environmentContext.GetValue("XCACIV_PACKAGE_ID", String.Empty, false);
-
-        var versionStr = environmentContext.GetValue("XCACIV_PACKAGE_VERSION");
-        if (!String.IsNullOrWhiteSpace(versionStr))
-        {
-            settings.Version = versionStr;
-        }
-
-        settings.InstallRoot = environmentContext.GetValue("XCACIV_INSTALL_ROOT");
+        // TODO allow package id and package version to be passed as parameters to the commands
+        
+        settings.InstallRoot = environmentContext.GetValue("PACKAGE_INSTALL_ROOT", "packages/");
         if (String.IsNullOrWhiteSpace(settings.InstallRoot))
         {
             settings.InstallRoot = null;
         }
 
-        settings.Terms = environmentContext.GetValue("XCACIV_SEARCH_TERMS", String.Empty, false);
-
-        var takeStr = environmentContext.GetValue("XCACIV_SEARCH_TAKE");
+        var takeStr = environmentContext.GetValue("PACKAGE_SEARCH_TAKE", "20");
         if (!String.IsNullOrWhiteSpace(takeStr) && Int32.TryParse(takeStr, out var take))
         {
             settings.Take = take;
         }
 
-        var preReleaseStr = environmentContext.GetValue("XCACIV_INCLUDE_PRERELEASE");
+        var preReleaseStr = environmentContext.GetValue("PACKAGE_INCLUDE_PRERELEASE", "FALSE");
         if (!String.IsNullOrWhiteSpace(preReleaseStr) && Boolean.TryParse(preReleaseStr, out var preRelease))
         {
             settings.IncludePrerelease = preRelease;
         }
 
-        settings.Verbosity = environmentContext.GetValue("XCACIV_VERBOSITY", "normal", false);
+        settings.Verbosity = environmentContext.GetValue("PACKAGE_VERBOSITY", "normal", false);
 
-        var sourceOverride = environmentContext.GetValue("XCACIV_SOURCE_OVERRIDE");
+        var sourceOverride = environmentContext.GetValue("PACKAGE_SOURCE", environmentContext.GetValue("PACKAGE_SOURCE_OVERRIDE"));
         if (!String.IsNullOrWhiteSpace(sourceOverride))
         {
             settings.NugetConfig.DefaultSource = sourceOverride;
@@ -94,53 +80,44 @@ public class PackageSourceConfigService : IPackageSourceConfigService
 
         if (parameters is not null)
         {
-            if (parameters.TryGetValue("packageId", out var packageIdParam))
+            if (parameters.TryGetValue("packageId", out var packageIdParam) && packageIdParam.TryGetValue<string>(out var packageIdValue) && String.IsNullOrWhiteSpace(packageIdValue))
             {
-                settings.PackageId = packageIdParam.ToString() ?? String.Empty;
+                settings.PackageId = packageIdValue;
             }
 
-            if (parameters.TryGetValue("version", out var versionParam))
+            if (parameters.TryGetValue("version", out var versionParam) && versionParam.TryGetValue<string>(out var versionValue) && String.IsNullOrWhiteSpace(versionValue))
             {
-                var versionValue = versionParam.ToString();
-                settings.Version = String.IsNullOrWhiteSpace(versionValue) ? null : versionValue;
+                settings.Version = versionValue;
             }
 
-            if (parameters.TryGetValue("installRoot", out var installRootParam))
+            if (parameters.TryGetValue("installRoot", out var installRootParam) && installRootParam.TryGetValue<string>(out var installRootValue) && String.IsNullOrWhiteSpace(installRootValue))
             {
-                var installRootValue = installRootParam.ToString();
-                settings.InstallRoot = String.IsNullOrWhiteSpace(installRootValue) ? null : installRootValue;
+                settings.InstallRoot = installRootValue;
             }
 
-            if (parameters.TryGetValue("terms", out var termsParam))
+            if (parameters.TryGetValue("terms", out var termsParam) && termsParam.TryGetValue<string>(out var termsValue) && String.IsNullOrWhiteSpace(termsValue))
             {
-                settings.Terms = termsParam.ToString() ?? String.Empty;
+                settings.Terms = termsValue;
             }
 
-            if (parameters.TryGetValue("take", out var takeParam) && Int32.TryParse(takeParam.ToString(), out var takeValue))
+            if (parameters.TryGetValue("take", out var takeParam) && takeParam.TryGetValue<int>(out int takeValue))
             {
                 settings.Take = takeValue;
             }
 
-            if (parameters.TryGetValue("prerelease", out var prereleaseParam))
+            if (parameters.TryGetValue("prerelease", out var prereleaseParam) && prereleaseParam.TryGetValue<bool>(out var prereleaseValue))
             {
-                if (Boolean.TryParse(prereleaseParam.ToString(), out var prereleaseValue))
-                {
-                    settings.IncludePrerelease = prereleaseValue;
-                }
+                settings.IncludePrerelease = prereleaseValue;
             }
 
-            if (parameters.TryGetValue("source", out var sourceParam))
+            if (parameters.TryGetValue("source", out var sourceParam) && sourceParam.TryGetValue<string>(out var sourceValue) && String.IsNullOrWhiteSpace(sourceValue))
             {
-                var sourceValue = sourceParam.ToString();
-                if (!String.IsNullOrWhiteSpace(sourceValue))
-                {
-                    settings.NugetConfig.DefaultSource = sourceValue;
-                }
+                settings.NugetConfig.DefaultSource = sourceValue;
             }
 
-            if (parameters.TryGetValue("verbosity", out var verbosityParam))
+            if (parameters.TryGetValue("verbosity", out var verbosityParam) && verbosityParam.TryGetValue<string>(out var verbosityValue) && String.IsNullOrWhiteSpace(verbosityValue))
             {
-                settings.Verbosity = verbosityParam.ToString() ?? "normal";
+                settings.Verbosity = verbosityValue;
             }
         }
 

@@ -3,7 +3,6 @@ namespace Xcaciv.Command.Packages.Commands;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using Xcaciv.Command.Core;
 using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Attributes;
@@ -49,18 +48,23 @@ public class PackageSearchCommand : AbstractPackageCommand
     {
         try
         {
+            // Ensure parameters dict is not null
+            if (parameters is null)
+            {
+                parameters = new Dictionary<string, IParameterValue>();
+            }
+            var searchterms = parameters["terms"].GetValue<string>();
             var settings = this.configService.ResolveSettings(env, parameters);
-            var results = this.searchService.SearchAsync(
-                settings.NugetConfig.DefaultSource,
-                settings.Terms,
-                settings.IncludePrerelease,
-                settings.Take,
-                CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+            var results = ExecuteSearch(settings.NugetConfig.DefaultSource, searchterms, settings.IncludePrerelease, settings.Take);
             return CommandResult<string>.Success(Render(results));
         }
         catch (ArgumentException ex)
         {
             return CommandResult<string>.Failure($"Invalid search parameters: {ex.Message}", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return CommandResult<string>.Failure($"Search operation failed: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
@@ -72,26 +76,39 @@ public class PackageSearchCommand : AbstractPackageCommand
     {
         try
         {
+            // Ensure parameters dict is not null
+            if (parameters is null)
+            {
+                parameters = new Dictionary<string, IParameterValue>();
+            }
+
             var pipedText = pipedResult is not null ? pipedResult.ToString() : String.Empty;
             var settings = this.configService.ResolveSettings(env, parameters);
             var combinedTerms = String.IsNullOrWhiteSpace(settings.Terms) ? pipedText : $"{settings.Terms} {pipedText}";
 
-            var results = this.searchService.SearchAsync(
-                settings.NugetConfig.DefaultSource,
-                combinedTerms ?? String.Empty,
-                settings.IncludePrerelease,
-                settings.Take,
-                CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+            var results = ExecuteSearch(settings.NugetConfig.DefaultSource, combinedTerms ?? String.Empty, settings.IncludePrerelease, settings.Take);
             return CommandResult<string>.Success(Render(results));
         }
         catch (ArgumentException ex)
         {
             return CommandResult<string>.Failure($"Invalid search parameters: {ex.Message}", ex);
         }
+        catch (InvalidOperationException ex)
+        {
+            return CommandResult<string>.Failure($"Search operation failed: {ex.Message}", ex);
+        }
         catch (Exception ex)
         {
             return CommandResult<string>.Failure($"Search failed: {ex.Message}", ex);
         }
+    }
+
+    private IReadOnlyList<SearchResult> ExecuteSearch(string source, string terms, bool includePrerelease, int take)
+    {
+        return this.searchService.SearchAsync(source, terms, includePrerelease, take, CancellationToken.None)
+            .ConfigureAwait(false)
+            .GetAwaiter()
+            .GetResult();
     }
 
     private SearchService CreateSearchService()
