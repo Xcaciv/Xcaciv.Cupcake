@@ -1,17 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Command\" />
+    <Compile Remove="Command\**" />
+    <EmbeddedResource Remove="Command\**" />
+    <None Remove="Command\**" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Xcaciv.Command" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xcaciv.Command.Packages\Xcaciv.Command.Packages.csproj" />
   </ItemGroup>
 
 </Project>

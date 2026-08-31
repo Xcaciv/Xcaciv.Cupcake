@@ -1,5 +1,6 @@
 ﻿using Xcaciv.Command.Interface;
 using Xcaciv.Command;
+using Xcaciv.Command.Packages.Commands;
 
 namespace Xcaciv.Cupcake.Core;
 
@@ -23,13 +24,13 @@ public class Loop
     /// </summary>
     public string PackageDirectory { get; set; } = @".\packages";
     public ICommandController Controller { get; private set; } = new CommandController();
-    public IEnvironmentContext Environment { get; private set; } = new EnvironmentContext();
+    public IControllerEnvironmentContext Environment { get; private set; } = new ControllerEnvironmentContext();
 
     /// <summary>
     /// run the inputCommand loop synchronously using inputFunc to get the commandline
     /// </summary>
     /// <param name="context"></param>
-    public void Run(IIoContext context, ICommandController controller, IEnvironmentContext env)
+    public void Run(IIoContext context, ICommandController controller, IControllerEnvironmentContext env)
     {
         Controller = controller;
         Environment = env;
@@ -44,7 +45,7 @@ public class Loop
         }
         catch (Xcaciv.Command.Interface.Exceptions.NoPluginsFoundException)
         {
-            context.OutputChunk("No Plugins Found. You may want to check out `install --help`").Wait();
+            context.OutputChunk(CommandResult<string>.Success("No Plugins Found. You may want to check out `install --help`")).Wait();
             // TODO: download first plugin and GOTO start again! :D
             // throw new Exceptions.LoadingException(ex.Message, ex);
         }
@@ -67,7 +68,7 @@ public class Loop
         
     }
 
-    public async Task RunAsync(IIoContext context, ICommandController controller, IEnvironmentContext env)
+    public async Task RunAsync(IIoContext context, ICommandController controller, IControllerEnvironmentContext env)
     {
         Controller = controller;
         Environment = env;
@@ -102,12 +103,12 @@ public class Loop
 
     }
 
-    public Loop RunWithDefaults()
+    public Loop RunInConsoleMode(IControllerEnvironmentContext environment)
     {
-
         Controller.RegisterBuiltInCommands();
-
-        this.Run(new ConsoleContext("Cupcake Console Context", []), Controller, Environment);
+        Controller.AddCommand("search", new PackageSearchCommand(), true);
+        Controller.AddCommand("install", new PackageInstallCommand(), true);
+        this.Run(new ConsoleContext("Cupcake Console Context", []), Controller, environment);
         return this;
     }
 }
