@@ -1,8 +1,8 @@
-namespace Xcaciv.Command.Packages.Models;
-
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+
+namespace Xcaciv.Command.Packages.Models;
 
 public class ConfigFile
 {

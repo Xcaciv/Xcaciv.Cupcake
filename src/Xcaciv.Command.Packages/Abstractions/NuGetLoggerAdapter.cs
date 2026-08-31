@@ -1,10 +1,10 @@
-namespace Xcaciv.Command.Packages.Abstractions;
-
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NuGetLogger = NuGet.Common.ILogger;
 using NuGetLogLevel = NuGet.Common.LogLevel;
+
+namespace Xcaciv.Command.Packages.Abstractions;
 
 public class NuGetLoggerAdapter : NuGetLogger
 {

@@ -1,11 +1,9 @@
-namespace Xcaciv.Command.Packages.Services;
-
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using Xcaciv.Command.Interface;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
+
+namespace Xcaciv.Command.Packages.Services;
 
 public class CommandValidationService
 {
@@ -22,19 +20,12 @@ public class CommandValidationService
             return false;
         }
 
-        try
+        foreach (var assembly in assemblies)
         {
-            foreach (var assembly in assemblies)
+            if (ContainsValidCommandDelegate(assembly))
             {
-                if (ContainsValidCommandDelegate(assembly))
-                {
-                    return true;
-                }
+                return true;
             }
-        }
-        catch
-        {
-            return false;
         }
 
         return false;
@@ -44,27 +35,66 @@ public class CommandValidationService
     {
         try
         {
-            var assembly = Assembly.LoadFrom(assemblyPath);
-            var commandInterfaceType = typeof(ICommandDelegate);
+            using var stream = File.OpenRead(assemblyPath);
+            using var peReader = new PEReader(stream);
 
-            var implementingTypes = assembly.GetTypes().Where(t =>
-                !t.IsAbstract &&
-                !t.IsInterface &&
-                commandInterfaceType.IsAssignableFrom(t)).ToList();
-
-            if (implementingTypes.Count == 0)
+            if (!peReader.HasMetadata)
             {
                 return false;
             }
 
-            var xcacivCommandRef = assembly.GetReferencedAssemblies()
-                .FirstOrDefault(a => a.Name?.StartsWith("Xcaciv.Command", StringComparison.OrdinalIgnoreCase) ?? false);
+            var metadataReader = peReader.GetMetadataReader();
 
-            return xcacivCommandRef is not null;
+            var hasXcacivRef = false;
+            foreach (var arHandle in metadataReader.AssemblyReferences)
+            {
+                var ar = metadataReader.GetAssemblyReference(arHandle);
+                if (metadataReader.GetString(ar.Name).StartsWith("Xcaciv.Command", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasXcacivRef = true;
+                    break;
+                }
+            }
+
+            if (!hasXcacivRef)
+            {
+                return false;
+            }
+
+            foreach (var typeDefHandle in metadataReader.TypeDefinitions)
+            {
+                var typeDef = metadataReader.GetTypeDefinition(typeDefHandle);
+                foreach (var interfaceImplHandle in typeDef.GetInterfaceImplementations())
+                {
+                    var interfaceImpl = metadataReader.GetInterfaceImplementation(interfaceImplHandle);
+                    var interfaceName = GetInterfaceName(metadataReader, interfaceImpl.Interface);
+                    if (interfaceName.Equals("ICommandDelegate", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
         catch
         {
             return false;
         }
+    }
+
+    private static string GetInterfaceName(MetadataReader reader, EntityHandle handle)
+    {
+        if (handle.Kind == HandleKind.TypeReference)
+        {
+            var typeRef = reader.GetTypeReference((TypeReferenceHandle)handle);
+            return reader.GetString(typeRef.Name);
+        }
+        if (handle.Kind == HandleKind.TypeDefinition)
+        {
+            var typeDef = reader.GetTypeDefinition((TypeDefinitionHandle)handle);
+            return reader.GetString(typeDef.Name);
+        }
+        return String.Empty;
     }
 }

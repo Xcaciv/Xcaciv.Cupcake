@@ -1,7 +1,7 @@
-namespace Xcaciv.Command.Packages.Validation;
-
 using System;
 using System.Text.RegularExpressions;
+
+namespace Xcaciv.Command.Packages.Validation;
 
 public class InputValidator
 {

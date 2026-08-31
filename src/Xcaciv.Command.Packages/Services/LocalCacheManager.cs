@@ -1,8 +1,8 @@
-namespace Xcaciv.Command.Packages.Services;
-
 using System;
 using System.IO;
 using System.Security.Cryptography;
+
+namespace Xcaciv.Command.Packages.Services;
 
 public class LocalCacheManager
 {
@@ -58,31 +58,33 @@ public class LocalCacheManager
         var path = GetPackageCachePath(packageId, version);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-        // If checksum validation is required, verify before writing
-        if (!String.IsNullOrWhiteSpace(expectedChecksum))
+        var tempPath = path + ".tmp";
+        try
         {
-            // Read stream into memory to compute checksum
-            var buffer = new byte[packageStream.Length];
-            var bytesRead = packageStream.Read(buffer, 0, buffer.Length);
-            packageStream.Position = 0;
-
-            using (var sha = System.Security.Cryptography.SHA256.Create())
+            using (var file = File.Create(tempPath))
             {
-                var hash = sha.ComputeHash(buffer, 0, bytesRead);
-                var actual = Convert.ToHexString(hash);
+                packageStream.CopyTo(file);
+            }
 
+            if (!String.IsNullOrWhiteSpace(expectedChecksum))
+            {
+                var actual = ComputeSha256(tempPath);
                 if (!String.Equals(actual, expectedChecksum, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException("Checksum verification failed for cached package.");
                 }
             }
 
-            packageStream.Position = 0;
+            File.Move(tempPath, path, overwrite: true);
         }
-
-        using var file = File.Create(path);
-        packageStream.CopyTo(file);
-        file.Flush(true);
+        catch
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+            throw;
+        }
     }
 
     private static string SanitizeSegment(string segment)

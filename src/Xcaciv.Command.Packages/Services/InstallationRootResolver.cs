@@ -1,7 +1,7 @@
-namespace Xcaciv.Command.Packages.Services;
-
 using System;
 using System.IO;
+
+namespace Xcaciv.Command.Packages.Services;
 
 public class InstallationRootResolver
 {

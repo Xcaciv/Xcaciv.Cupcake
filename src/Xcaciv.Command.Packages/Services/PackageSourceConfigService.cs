@@ -1,20 +1,23 @@
-namespace Xcaciv.Command.Packages.Services;
-
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Xcaciv.Command.Interface;
 using Xcaciv.Command.Interface.Parameters;
 using Xcaciv.Command.Packages.Models;
 using Xcaciv.Command.Packages.Validation;
 
+namespace Xcaciv.Command.Packages.Services;
+
 public class PackageSourceConfigService : IPackageSourceConfigService
 {
     private readonly InputValidator inputValidator;
+    private readonly ILogger<PackageSourceConfigService> logger;
 
-    public PackageSourceConfigService(InputValidator inputValidator)
+    public PackageSourceConfigService(InputValidator inputValidator, ILogger<PackageSourceConfigService> logger)
     {
         this.inputValidator = inputValidator ?? throw new ArgumentNullException(nameof(inputValidator));
+        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public PackageSourceSettings ResolveSettings(IEnvironmentContext environmentContext, Dictionary<string, IParameterValue>? parameters = null)
@@ -38,8 +41,9 @@ public class PackageSourceConfigService : IPackageSourceConfigService
                     settings.AllowExternalDependencies = deserializedConfig.AllowExternalDependencies;
                 }
             }
-            catch
+            catch (JsonException ex)
             {
+                this.logger.LogError(ex, "PACKAGE_CONFIG_JSON contains invalid JSON and could not be deserialized.");
             }
         }
 

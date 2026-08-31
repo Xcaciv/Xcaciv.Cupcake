@@ -1,5 +1,3 @@
-namespace Xcaciv.Command.Packages.Commands;
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -10,6 +8,8 @@ using Xcaciv.Command.Interface.Parameters;
 using Xcaciv.Command.Packages.Abstractions;
 using Xcaciv.Command.Packages.Services;
 using Xcaciv.Command.Packages.Validation;
+
+namespace Xcaciv.Command.Packages.Commands;
 
 [CommandRegister("search", "Search for command packages using natural language terms")]
 [CommandRoot("package", "Manage command packages")]
@@ -53,7 +53,12 @@ public class PackageSearchCommand : AbstractPackageCommand
             {
                 parameters = new Dictionary<string, IParameterValue>();
             }
-            var searchterms = parameters["terms"].GetValue<string>();
+
+            if (!parameters.TryGetValue("terms", out var termsParam) || !termsParam.TryGetValue<string>(out var searchterms) || String.IsNullOrWhiteSpace(searchterms))
+            {
+                return CommandResult<string>.Failure("Search terms are required.");
+            }
+
             var settings = this.configService.ResolveSettings(env, parameters);
             var results = ExecuteSearch(settings.NugetConfig.DefaultSource, searchterms, settings.IncludePrerelease, settings.Take);
             return CommandResult<string>.Success(Render(results));
@@ -82,7 +87,7 @@ public class PackageSearchCommand : AbstractPackageCommand
                 parameters = new Dictionary<string, IParameterValue>();
             }
 
-            var pipedText = pipedResult is not null ? pipedResult.ToString() : String.Empty;
+            var pipedText = pipedResult is not null ? pipedResult.Output : String.Empty;
             var settings = this.configService.ResolveSettings(env, parameters);
             var combinedTerms = String.IsNullOrWhiteSpace(settings.Terms) ? pipedText : $"{settings.Terms} {pipedText}";
 

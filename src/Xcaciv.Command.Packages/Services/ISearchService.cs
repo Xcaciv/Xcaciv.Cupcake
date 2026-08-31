@@ -1,9 +1,9 @@
-namespace Xcaciv.Command.Packages.Services;
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+
+namespace Xcaciv.Command.Packages.Services;
 
 public interface ISearchService
 {

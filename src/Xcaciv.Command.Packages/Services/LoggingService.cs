@@ -1,7 +1,7 @@
-namespace Xcaciv.Command.Packages.Services;
-
 using System;
 using Microsoft.Extensions.Logging;
+
+namespace Xcaciv.Command.Packages.Services;
 
 public class LoggingService
 {

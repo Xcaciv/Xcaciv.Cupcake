@@ -1,5 +1,3 @@
-namespace Xcaciv.Command.Packages.Commands;
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -11,6 +9,8 @@ using Xcaciv.Command.Packages.Abstractions;
 using Xcaciv.Command.Packages.Models;
 using Xcaciv.Command.Packages.Services;
 using Xcaciv.Command.Packages.Validation;
+
+namespace Xcaciv.Command.Packages.Commands;
 
 [CommandRegister("install", "Install a command package from a NuGet source")]
 [CommandRoot("package", "Manage command packages")]
@@ -55,6 +55,11 @@ public class PackageInstallCommand : AbstractPackageCommand
             }
 
             var settings = this.configService.ResolveSettings(env, parameters);
+            if (String.IsNullOrWhiteSpace(settings.PackageId))
+            {
+                return CommandResult<string>.Failure("A package ID is required to install a package.");
+            }
+
             var result = ExecuteInstall(settings);
             return result.IsSuccess
                 ? CommandResult<string>.Success(result.Message)
@@ -76,7 +81,7 @@ public class PackageInstallCommand : AbstractPackageCommand
 
     public override IResult<string> HandlePipedChunk(IResult<string> pipedResult, Dictionary<string, IParameterValue> parameters, IEnvironmentContext env)
     {
-        var pipedPackageId = pipedResult is not null ? pipedResult.ToString() : null;
+        var pipedPackageId = pipedResult is not null ? pipedResult.Output : null;
         if (String.IsNullOrWhiteSpace(pipedPackageId))
         {
             return CommandResult<string>.Failure("Piped package ID cannot be empty");

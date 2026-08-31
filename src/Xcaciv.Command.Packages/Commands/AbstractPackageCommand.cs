@@ -46,7 +46,8 @@ namespace Xcaciv.Command.Packages.Commands
 
         protected PackageSourceConfigService CreateConfigService()
         {
-            return new PackageSourceConfigService(new InputValidator());
+            var logger = this.LoggerFactory.CreateLogger<PackageSourceConfigService>();
+            return new PackageSourceConfigService(new InputValidator(), logger);
         }
     }
 }

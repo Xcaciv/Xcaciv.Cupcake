@@ -1,11 +1,11 @@
-namespace Xcaciv.Command.Packages.Services;
-
 using System;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using Xcaciv.Command.Packages.Abstractions;
+
+namespace Xcaciv.Command.Packages.Services;
 
 public class NuGetClientFactory
 {

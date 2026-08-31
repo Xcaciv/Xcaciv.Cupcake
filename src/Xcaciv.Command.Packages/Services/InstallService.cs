@@ -1,5 +1,3 @@
-namespace Xcaciv.Command.Packages.Services;
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,6 +8,8 @@ using NuGet.Packaging;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using Xcaciv.Command.Packages.Validation;
+
+namespace Xcaciv.Command.Packages.Services;
 
 public class InstallService : IInstallService
 {
@@ -43,7 +43,6 @@ public class InstallService : IInstallService
         this.inputValidator.ValidatePackageId(packageId);
 
         var installRoot = this.installationRootResolver.Resolve(installRootOverride);
-        _ = new LocalCacheManager(installRoot);
         var packagesDir = Path.Combine(installRoot, "packages");
         Directory.CreateDirectory(packagesDir);
 

@@ -16,7 +16,7 @@ try
     var defaultConfigPath = Path.Combine(appRoot, "lit.cupcake.config.yml");
     var envFilePath = Path.Combine(appRoot, "lit.cupcake.env.yml");
 
-    var environment = loadEnvironment(defaultConfigPath, envFilePath, loadEnv, customConfigPath??"");
+    var environment = LoadEnvironment(defaultConfigPath, envFilePath, loadEnv, customConfigPath??"");
 
     commandLoop.RunInConsoleMode(environment);
 
@@ -32,7 +32,7 @@ catch (Exception ex)
     Environment.Exit(1);
 }
 
-static IControllerEnvironmentContext loadEnvironment(string defaultConfigPath, string envFilePath, bool loadEnv = false, string customConfigPath = "")
+static IControllerEnvironmentContext LoadEnvironment(string defaultConfigPath, string envFilePath, bool loadEnv = false, string customConfigPath = "")
 {
     var environment = new ControllerEnvironmentContext();
     var configLoader = new ControllerEnvironmentFileManager();

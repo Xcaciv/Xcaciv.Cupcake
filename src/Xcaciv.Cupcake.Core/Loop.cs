@@ -106,7 +106,8 @@ public class Loop
     public Loop RunInConsoleMode(IControllerEnvironmentContext environment)
     {
         Controller.RegisterBuiltInCommands();
-        Controller.AddCommand("search", new PackageSearchCommand(), false);
+        Controller.AddCommand("search", new PackageSearchCommand(), true);
+        Controller.AddCommand("install", new PackageInstallCommand(), true);
         this.Run(new ConsoleContext("Cupcake Console Context", []), Controller, environment);
         return this;
     }
