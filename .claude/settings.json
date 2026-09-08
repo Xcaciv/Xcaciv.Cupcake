@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "dotnet@dotnet-agent-skills": true,
+    "dotnet-advanced@dotnet-agent-skills": true,
+    "dotnet-ai@dotnet-agent-skills": true,
+    "dotnet-claude-kit@dotnet-claude-kit": true,
+    "dotnet-diag@dotnet-agent-skills": true,
+    "dotnet-msbuild@dotnet-agent-skills": true,
+    "dotnet-nuget@dotnet-agent-skills": true,
+    "dotnet-test@dotnet-agent-skills": true,
+    "superpowers@claude-plugins-official": true
+  }
+}

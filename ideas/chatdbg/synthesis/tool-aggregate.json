@@ -1,0 +1,1365 @@
+{
+ "packages": [
+  {
+   "environmentKeys": [
+    "CHATDBG_DIAG_DIR",
+    "CHATDBG_DIAG_FILE",
+    "CHATDBG_DIAG_CONSOLE",
+    "CHATDBG_DIAG_TRACE",
+    "CHATDBG_DIAG_BUFFER",
+    "CHATDBG_DIAG_LEVEL",
+    "CHATDBG_DIAG_PATTERN",
+    "CHATDBG_DIAG_TIMESTAMPS",
+    "CHATDBG_DIAG_REDACT",
+    "CHATDBG_DIAG_ARMED",
+    "CHATDBG_DIAG_RETAIN_DAYS",
+    "CHATDBG_DIAG_MAX_TOTAL_MB",
+    "CHATDBG_DIAG_MAX_FILE_MB",
+    "CHATDBG_DIAG_COMPRESS",
+    "CHATDBG_DIAG_AUDIT",
+    "CHATDBG_DIAG_AUDIT_SINK",
+    "CHATDBG_DIAG_AUDIT_PATH",
+    "RECORD_CHUNKS",
+    "EXPORT_LAST_PATH",
+    "DOCTOR_LAST_RUN",
+    "DOCTOR_LAST_STATUS",
+    "CHATDBG_AZURE_API_KEY",
+    "CHATDBG_AWS_ACCESS_KEY",
+    "AWS_ACCESS_KEY_ID",
+    "CHATDBG_AWS_SECRET_KEY",
+    "AWS_SECRET_ACCESS_KEY"
+   ],
+   "newBeyondSource": [
+    "Runtime configuration surface for the recorder: the source's five switches (log directory, file logging, debug output, console output, 10000-char buffer threshold) were private fields requiring a recompile to change, while its own docs told users to 'set them in config' (QUIRK-14, business rule 24). DIAG CAPTURE exposes all five plus level filter, timestamp mode and redaction.",
+    "DIAG STATUS: an in-band health signal. The source's acceptance criterion 20 records that a completely dead logging subsystem was indistinguishable from a healthy one on every channel, because all four internal-failure reports went to a debug-trace sink compiled out of every non-DEBUG build (QUIRK-11). STATUS reports armed state, sink health, buffer occupancy, fault count and last fault.",
+    "DIAG TAIL: a read surface for the buffer and the rolling files, with level/regex/since filtering, buffer+file merge, per-entry chunking, and transparent .gz reading. The source's GetLogs() was public API with no user-facing surface anywhere.",
+    "DIAG RECORD as a pipeline tee: records each chunk as an entry and re-emits it verbatim (or swallows it with -quiet), with OnStartPipe/OnEndPipe journal brackets, making every other package's pipeline observable in one log.",
+    "DIAG ROTATE: retention by age, total-size cap, per-file size roll and optional gzip, dry-run by default and confined to the log root. The source had no retention policy at all -- 'rotation' meant only a date-stamped file name, with no size cap, no compression and no deletion, so long-lived installs grew unboundedly.",
+    "DIAG DOCTOR: an executable form of the source's 300-line 0xC0000005 troubleshooting document. Groups runtime, build, backend, native, credentials, config, storage. Includes an OUT-OF-PROCESS native load probe so a hard access violation cannot kill the shell.",
+    "DIAG DOCTOR credential checks that report resolution tier and source label only, never a value -- explicitly refusing to reproduce the source's migration wizard, which interpolated plaintext secrets into 'set CHATDBG_...=<value>' lines on every settings load (credential Q3).",
+    "DIAG DOCTOR build-profile checks (BLD-001..004) that warn when trimming, AOT, invariant globalization, resource-key exception messages or stripped stack-trace metadata are degrading the very diagnostics this package produces (packaging Q12/Q13/R21/R24/R38).",
+    "DIAG DOCTOR real keystore probe that distinguishes 'available' from 'present but refusing', replacing the source's bare 'is the OS Windows' test which reported a policy-disabled vault as healthy.",
+    "DIAG AUDIT: structured command-execution auditing with redaction policy, plus an honest printed caveat that the framework's AuditMaskingConfiguration only masks '-name=value' tokens and not its own space-separated '-name value' form.",
+    "DIAG BUILDINFO: identity and publish-profile of the running artefact plus the loaded tool-package inventory. The source declared its version in three unreconciled places and its Compact profile stripped assembly identity entirely.",
+    "DIAG FILES -roots: names the product's three per-user state roots and their writability. The source scattered state across three roots under two naming conventions and documented none of them outside Windows.",
+    "Ingest-time credential redaction in the recorder ([REDACTED] placeholder matching the framework default), so pasted or wizard-printed secrets never reach a file users are told to attach to bug reports.",
+    "Repair of QUIRK-4/QUIRK-18: export sources the union of un-flushed buffer and already-flushed daily files, writes no file when there is nothing to write, refuses to overwrite a non-empty destination without -force, and reports success/failure to the caller.",
+    "Bounded buffer with counted drop markers when the file sink is off, replacing the source's unbounded growth (business rule 13).",
+    "Invariant-culture timestamp rendering by default, fixing the source's build-dependent double timestamp shape (QUIRK-13), with an opt-in localoffset/utc mode.",
+    "Refusal of the empty-app-data-root case that silently turned the source's log directory into a working-directory-relative path on a Unix host with no HOME."
+   ],
+   "openDesignQuestions": [
+    "Daily file-name pattern: the chapter renames the default from 'llamasharp_yyyyMMdd.log' to 'chatdbg_yyyyMMdd.log' because the rebuilt recorder captures all three backends, and keeps read-compatibility with the legacy name. If the support workflow's documented artefact name is treated as a contract, this must be reverted.",
+    "Whether DIAG RECORD's suffix message parameter should be blocked entirely for interactive use, given that the framework's audit masking cannot mask space-separated parameters. The chapter mitigates by recording only length+hash in audit metadata, but a stricter reading argues for a prompt-based input path instead.",
+    "Whether the recorder should own or merely borrow the process-global native log-sink hook when the binding offers no unregister. The chapter specifies swapping to a no-op sentinel on disposal; the underlying binding's actual capability was not verified.",
+    "Whether DIAG DOCTOR's read-only ports into settings and credential provenance should be host-supplied interfaces or a formal cross-package query contract. The chapter chose host-supplied ports to keep the tool -> SDK dependency arrow, at the cost of check groups reporting 'skipped (no provider)' in a bare host.",
+    "Whether the DIAG tools that need shared configuration should use global environment variables (requiring modifiesEnvironment: true on CAPTURE/ROTATE/AUDIT) or a host-injected policy object. The chapter chose globals to stay inside the framework's documented propagation rules; a policy object would be simpler but less inspectable via ENV.",
+    "Whether -probe native's out-of-process helper is acceptable in a restricted host, or whether it should be a separate opt-in package so the base DIAG package never spawns a process.",
+    "Retention defaults (14 days, 256 MiB total, 64 MiB per file) are invented -- the source had no retention at all and the dossier records 'could not determine whether the daily file was ever intended to be pruned'. These need a product decision.",
+    "Whether DIAG DOCTOR should also fail (not warn) when maxTokens is inert on the Azure non-logprobs path and when llamaGpuDevice/llamaThreads/llamaBatchSize reach no runtime, or whether those source quirks should be fixed in the owning packages instead of merely reported here."
+   ],
+   "tools": [
+    {
+     "command": "CAPTURE",
+     "root": "DIAG",
+     "purpose": "Arm/disarm engine diagnostic capture and configure the recorder's sinks, buffer threshold, level filter, file-name pattern, timestamp mode and redaction.",
+     "pipes": "not-pipeable",
+     "origin": "ported:LLamaSharpLogConfig.ConfigureLogging() plus the five compile-time-only switches (LogDirectory, EnableFileLogging, EnableDebugOutput, EnableConsoleOutput, MaxBufferSize)"
+    },
+    {
+     "command": "STATUS",
+     "root": "DIAG",
+     "purpose": "Report capture state, engine-sink health, buffer occupancy, resolved policy, fault count and last internal fault.",
+     "pipes": "source",
+     "origin": "new"
+    },
+    {
+     "command": "TAIL",
+     "root": "DIAG",
+     "purpose": "Emit the most recent diagnostic entries from the buffer, the daily files, or both merged, with level/regex/since filtering; one chunk per entry.",
+     "pipes": "source / filter (piped chunk = one log-file path)",
+     "origin": "ported:LLamaSharpLogConfig.GetLogs() (operation A4, which had no user-facing surface)"
+    },
+    {
+     "command": "RECORD",
+     "root": "DIAG",
+     "purpose": "Record an application-level entry at a given level and tag; as a pipeline stage, journal every chunk that passes through and re-emit it verbatim (or swallow it with -quiet).",
+     "pipes": "filter (tee) / sink with -quiet",
+     "origin": "ported:LLamaSharpLogConfig.LogMessage(level, message) (operation A3)"
+    },
+    {
+     "command": "FLUSH",
+     "root": "DIAG",
+     "purpose": "Append the buffered entries to today's rolling log file and empty the buffer; report what was written or why nothing was.",
+     "pipes": "not-pipeable",
+     "origin": "ported:LLamaSharpLogConfig.FlushToFile() (operation A6)"
+    },
+    {
+     "command": "EXPORT",
+     "root": "DIAG",
+     "purpose": "Write diagnostic entries to a caller-named file suitable for attaching to a bug report, sourced from the buffer, today's file, both merged, or every retained day.",
+     "pipes": "sink (piped chunk = one line to write); also usable non-piped",
+     "origin": "ported:Commands/ExportLogsCommand.cs (the unregistered stub) + LLamaSharpLogConfig.SaveLogsToFile(path) (operation A7)"
+    },
+    {
+     "command": "CLEAR",
+     "root": "DIAG",
+     "purpose": "Discard the in-memory diagnostic buffer without writing it anywhere; requires -force, offers -flush as the non-destructive alternative.",
+     "pipes": "not-pipeable",
+     "origin": "ported:LLamaSharpLogConfig.ClearLogs() (operation A5)"
+    },
+    {
+     "command": "FILES",
+     "root": "DIAG",
+     "purpose": "List the rolling log files (path, day, bytes, mtime, pattern) and, with -roots, the product's three per-user state locations and their writability.",
+     "pipes": "source (emits one absolute path per chunk, directly consumable by TAIL/ROTATE/EXPORT)",
+     "origin": "new"
+    },
+    {
+     "command": "ROTATE",
+     "root": "DIAG",
+     "purpose": "Apply retention policy to the rolling log files: prune by age, cap total size, roll oversized files, optionally gzip. Dry-run by default; -apply required to modify anything.",
+     "pipes": "source / filter (piped chunk = one candidate file path)",
+     "origin": "new"
+    },
+    {
+     "command": "DOCTOR",
+     "root": "DIAG",
+     "purpose": "Environment health check across runtime, build profile, backend availability, native library resolution, credential resolution provenance, configuration validity and storage; one chunk per check.",
+     "pipes": "source / filter (piped chunk = one check id or group name)",
+     "origin": "new"
+    },
+    {
+     "command": "AUDIT",
+     "root": "DIAG",
+     "purpose": "Configure structured command-execution auditing, its sink and its redaction policy, and report the framework's real masking limitation.",
+     "pipes": "not-pipeable",
+     "origin": "new"
+    },
+    {
+     "command": "BUILDINFO",
+     "root": "DIAG",
+     "purpose": "Report the identity and inferred publish profile of the running artefact plus, with -packages, the loaded tool-package inventory and their load-time verification status.",
+     "pipes": "source",
+     "origin": "new"
+    }
+   ],
+   "wroteFile": true
+  },
+  {
+   "wroteFile": true,
+   "tools": [
+    {
+     "command": "STATUS",
+     "root": "PROMPT",
+     "purpose": "Show the active system prompt, its text and metadata; -content-only emits just the text for piping.",
+     "pipes": "source",
+     "origin": "ported:/prompt (bare, no arguments)"
+    },
+    {
+     "command": "LIST",
+     "root": "PROMPT",
+     "purpose": "Enumerate, filter and sort the prompt library; emits one chunk per prompt in text/names/csv/json.",
+     "pipes": "source",
+     "origin": "ported:/prompt list"
+    },
+    {
+     "command": "SHOW",
+     "root": "PROMPT",
+     "purpose": "Show one prompt with its description and timestamps, or only its content.",
+     "pipes": "filter",
+     "origin": "ported:/prompt show <n> (and GUI Show button)"
+    },
+    {
+     "command": "USE",
+     "root": "PROMPT",
+     "purpose": "Select the active prompt: publishes name and text to the global environment and stamps last-used.",
+     "pipes": "filter",
+     "origin": "ported:/prompt use <n>, /set systemPrompt <n>, GUI Use button"
+    },
+    {
+     "command": "CREATE",
+     "root": "PROMPT",
+     "purpose": "Create a new prompt with content from a pipe, a file, inline text, or the built-in default text.",
+     "pipes": "sink",
+     "origin": "ported:/prompt create <n> [description] (and GUI Create dialog)"
+    },
+    {
+     "command": "EDIT",
+     "root": "PROMPT",
+     "purpose": "Replace a prompt's content and/or description via pipe, file, inline text, $EDITOR, or END-terminated interactive entry.",
+     "pipes": "sink",
+     "origin": "ported:/prompt edit <n> (and GUI Edit dialog)"
+    },
+    {
+     "command": "RENAME",
+     "root": "PROMPT",
+     "purpose": "Rename a prompt while preserving description, createdAt and lastUsedAt, and follow the active selection.",
+     "pipes": "not-pipeable",
+     "origin": "new"
+    },
+    {
+     "command": "COPY",
+     "root": "PROMPT",
+     "purpose": "Duplicate a prompt under a new name so a persona can be forked without re-typing it.",
+     "pipes": "source",
+     "origin": "new"
+    },
+    {
+     "command": "DELETE",
+     "root": "PROMPT",
+     "purpose": "Delete a prompt, with the active-prompt guard, a No-defaulted confirmation and a single-generation backup.",
+     "pipes": "filter",
+     "origin": "ported:/prompt delete <n> (and GUI Delete button)"
+    },
+    {
+     "command": "IMPORT",
+     "root": "PROMPT",
+     "purpose": "Import a prompt from a bare file name inside the confined exchange directory, as text or as a full JSON record.",
+     "pipes": "filter",
+     "origin": "ported:/prompt import <n> <file_path> [description]"
+    },
+    {
+     "command": "EXPORT",
+     "root": "PROMPT",
+     "purpose": "Export a prompt into the exchange directory as text (content only) or JSON (lossless round trip).",
+     "pipes": "filter",
+     "origin": "ported:/prompt export <n> [file_path]"
+    },
+    {
+     "command": "RESET",
+     "root": "PROMPT",
+     "purpose": "Restore missing (or, with -force, modified) built-in starter prompts explicitly instead of relying on empty-store auto-seeding.",
+     "pipes": "source",
+     "origin": "new"
+    },
+    {
+     "command": "PATH",
+     "root": "PROMPT",
+     "purpose": "Report the store, exchange and backup directories, how each was resolved, and whether each is writable.",
+     "pipes": "source",
+     "origin": "new"
+    },
+    {
+     "command": "DOCTOR",
+     "root": "PROMPT",
+     "purpose": "Diagnose the library: unreadable files, name/file mismatches, sanitization collisions, dangling active name, missing built-ins; -fix applies only reversible repairs.",
+     "pipes": "source",
+     "origin": "new"
+    }
+   ],
+   "environmentKeys": [
+    "CHATDBG_PROMPT_DIR",
+    "CHATDBG_PROMPT_EXCHANGE_DIR",
+    "CHATDBG_SYSTEM_PROMPT",
+    "CHATDBG_SYSTEM_PROMPT_TEXT",
+    "CHATDBG_PROMPT_SEED",
+    "CHATDBG_PROMPT_MAX_CHARS",
+    "CHATDBG_PROMPT_ALLOW_EDITOR",
+    "VISUAL",
+    "EDITOR"
+   ],
+   "newBeyondSource": [
+    "PROMPT RENAME \u2014 rename preserving description, createdAt and lastUsedAt (source could only export/import/delete, which reset all metadata)",
+    "PROMPT COPY \u2014 duplicate a prompt under a new name (source always started new prompts from the same generic default text)",
+    "PROMPT RESET \u2014 explicit, idempotent restoration of the four built-ins, including a single named built-in (source seeded only when the store loaded zero prompts, at every launch)",
+    "PROMPT PATH \u2014 report store/exchange/backup directories, how resolved and whether writable (source's list output printed a .NET type name instead of the directory, dossier Q2)",
+    "PROMPT DOCTOR \u2014 diagnose unreadable files, name/file-name mismatches, sanitization collisions, dangling active name, missing built-ins; -fix applies only reversible repairs",
+    "Lossless JSON import/export format carrying description, createdAt and lastUsedAt (source exported text only, losing all metadata on a round trip)",
+    "Content authoring through the pipe and through -file, plus -text and -editor, on both CREATE and EDIT (source's create never accepted content; edit was a raw-console END loop only)",
+    "Editing a prompt's description from the command surface (source allowed this only in the GUI dialog)",
+    "Filtering, sorting, result-shaping and a clamped -limit on LIST (-name-like, -text-like, -sort, -collation, -format, -unused, -builtin)",
+    "-content-only on STATUS and SHOW, making prompt text a first-class pipeline source",
+    "-force / -yes confirmation model on every overwriting or destructive tool, with confirmation defaulting to No (source's GUI focused Yes and had no active-prompt delete guard)",
+    "Single-generation .backup copies before EDIT, DELETE and RESET -force, plus a .quarantine area for unreadable files",
+    "Path confinement: no tool accepts a filesystem path; import/export resolve bare file names against one configured exchange directory (source read and wrote any path the process could reach)",
+    "Platform-pinned behaviour: one fixed forbidden-character set, ordinal case-sensitive name matching, selectable collation, and an export directory that never degrades to the working directory",
+    "Atomic temp-file-plus-rename writes with an advisory lock, closing the source's concurrent-clobber and truncation window",
+    "Content size ceiling (CHATDBG_PROMPT_MAX_CHARS) and end-of-input termination in the interactive editor, closing the source's unbounded-memory hang",
+    "Store relocation via CHATDBG_PROMPT_DIR (source had a constructor override used only by its tests)",
+    "Distinguishing a corrupt prompt record from a missing one in SHOW (source reported both as 'not found')"
+   ],
+   "openDesignQuestions": [
+    "Registration mode for PROMPT USE: it needs modifiesEnvironment: true to publish CHATDBG_SYSTEM_PROMPT globally, but package-directory loading registers every discovered command with modifiesEnvironment: false. Is the package always registered in-process by the composition root (Cupcake path (a)), or must the store marker file <store>/.active become the primary selection channel with the environment as a mirror?",
+    "Ownership of persistence for the active prompt name: this chapter has USE publish to the environment and ChatDbg.Tools.Settings persist systemPromptName. That requires Settings to observe an environment change or to be invoked as a later pipeline stage (PROMPT USE | SET SAVE). Confirm with the Settings chapter which mechanism is contractual.",
+    "Does the host's IIoContext implementation propagate an output encoder and branch on ResultFormat? The framework never applies IOutputEncoder itself, so PROMPT LIST -format csv/json is metadata only unless the shell's HandleOutputChunk renders on it.",
+    "The argument tokenizer strips ':' '/' '\\' ';' '<' '>' '{' '}' '+' '=' ',' even inside quotes. This chapter routes all paths and all real content around it (basenames, pipe, -file, interactive prompt). If the host is permitted to fork or wrap NamesValidator to preserve quoted spans verbatim, several parameters (-text, -description, real paths) could be restored \u2014 is that fork acceptable?",
+    "Backup policy: one generation in <store>/.backup is specified. Should PROMPT DOCTOR be able to restore from it (a RESTORE verb), or is that deliberately left to the exchange directory plus real version control?",
+    "Should the exchange directory default to the documents folder (source's command-path default) or to a dedicated ChatDbg subdirectory? The chapter keeps the documents folder for continuity, but a dedicated directory would make confinement easier to explain and to lock down.",
+    "Culture-sensitive collation is the default to match the source exactly, but the source's size-optimised publish profiles disabled globalization and silently changed it. Should the shipped release pin -collation ordinal by default and keep culture as opt-in?",
+    "PROMPT EDIT -editor spawns a process, the only such capability in the package. Confirm whether the restricted-host profile disables it by default (CHATDBG_PROMPT_ALLOW_EDITOR=false) rather than enabling it by default as specified here."
+   ]
+  },
+  {
+   "tools": [
+    {
+     "command": "SET SHOW",
+     "root": "SET",
+     "purpose": "Render the effective configuration (all or one section) in text/JSON/YAML/CSV, with secrets shown as status-and-provenance only",
+     "pipes": "source (produces piped output; refuses piped input with an explanatory string)",
+     "origin": "ported:/set with no arguments (Commands/SetCommand.cs:401-458) plus the windowed Settings dialog read path"
+    },
+    {
+     "command": "SET GET",
+     "root": "SET",
+     "purpose": "Print the value of exactly one setting, optionally with its provenance",
+     "pipes": "filter (one chunk = one setting key; one value chunk out per key) and source",
+     "origin": "new"
+    },
+    {
+     "command": "SET VALUE",
+     "root": "SET",
+     "purpose": "Validate and store one tunable, then persist the document",
+     "pipes": "filter (value arrives via UsePipe; one chunk = one candidate value; one transaction committed in OnEndPipe)",
+     "origin": "ported:/set <key> <value...> (Commands/SetCommand.cs:28-294)"
+    },
+    {
+     "command": "SET UNSET",
+     "root": "SET",
+     "purpose": "Clear a text setting to empty, or return a typed setting to its built-in default",
+     "pipes": "filter (one chunk = one key to clear)",
+     "origin": "new"
+    },
+    {
+     "command": "SET RESET",
+     "root": "SET",
+     "purpose": "Restore one key, one section, or the whole record to built-in defaults",
+     "pipes": "source (emits one line per field changed; refuses piped input)",
+     "origin": "new"
+    },
+    {
+     "command": "SET MODEL",
+     "root": "SET",
+     "purpose": "Show or change the model identifier / GGUF path, with the same validation SET VALUE modelId applies",
+     "pipes": "filter and source",
+     "origin": "ported:/model (Commands/ModelCommand.cs:23-34)"
+    },
+    {
+     "command": "SET PATH",
+     "root": "SET",
+     "purpose": "Report the resolved settings document, base directory and profile directory, and how each was chosen",
+     "pipes": "source",
+     "origin": "ported:the plain-console startup banner line 'Settings file: <path>' (ChatDbg/ChatShell.cs:192-208)"
+    },
+    {
+     "command": "SET VALIDATE",
+     "root": "SET",
+     "purpose": "Validate the active record, a named profile, or a piped JSON document against the key catalog",
+     "pipes": "filter (one chunk = one complete JSON settings document) and sink under -strict",
+     "origin": "new"
+    },
+    {
+     "command": "SET KEYS",
+     "root": "SET",
+     "purpose": "Emit the machine-readable key catalog: key, aliases, type, default, min, max, allowed values, current value",
+     "pipes": "source (overrides Main to emit one chunk per key)",
+     "origin": "new"
+    },
+    {
+     "command": "SET IMPORT",
+     "root": "SET",
+     "purpose": "Validate and adopt a complete settings document from a file or the pipe, replacing or merging",
+     "pipes": "filter (one chunk = one complete document) and sink",
+     "origin": "new"
+    },
+    {
+     "command": "SET PROFILE",
+     "root": "SET",
+     "purpose": "Show the active configuration profile, or validate and switch to another",
+     "pipes": "filter and source",
+     "origin": "new"
+    },
+    {
+     "command": "SET PROFILES",
+     "root": "SET",
+     "purpose": "List every saved profile, one per chunk, optionally with provider/model/last-used/validity",
+     "pipes": "source (one chunk per profile)",
+     "origin": "new"
+    },
+    {
+     "command": "SET SAVEPROFILE",
+     "root": "SET",
+     "purpose": "Capture the current record (or another profile) as a named profile, with secret slots stripped",
+     "pipes": "filter (one chunk = one profile name to create)",
+     "origin": "new"
+    },
+    {
+     "command": "SET DROPPROFILE",
+     "root": "SET",
+     "purpose": "Permanently delete a saved profile; requires -force, refuses the active profile and 'default'",
+     "pipes": "filter (one chunk = one profile name)",
+     "origin": "new"
+    },
+    {
+     "command": "SET DIFF",
+     "root": "SET",
+     "purpose": "Report the keys that differ between two profiles, or between a profile and the built-in defaults",
+     "pipes": "filter (one chunk = one left-hand profile) and source; silent when identical",
+     "origin": "new"
+    },
+    {
+     "command": "SET ENV",
+     "root": "SET",
+     "purpose": "Set a shell environment variable \u2014 the framework built-in SET preserved under the new root",
+     "pipes": "sink (accumulates piped chunks into the variable; emits only empty successes)",
+     "origin": "ported:the Xcaciv.Command built-in SET command (Xcaciv.Command/Commands/SetCommand.cs)"
+    }
+   ],
+   "environmentKeys": [
+    "SET_FILE",
+    "SET_BASEDIR",
+    "SET_PROFILE",
+    "SET_REDACT",
+    "SET_STRICT",
+    "SET_CONFIRM",
+    "SET_READONLY",
+    "SET_CULTURE",
+    "SET_AUTOSAVE",
+    "SET_LAST_PROFILE",
+    "CHATDBG_HOME",
+    "CHATDBG_SETTINGS_FILE",
+    "CHATDBG_PROFILE",
+    "CHATDBG_PROVIDER",
+    "CHATDBG_MODEL_ID",
+    "CHATDBG_TEMPERATURE",
+    "CHATDBG_MAX_TOKENS",
+    "CHATDBG_AZURE_ENDPOINT",
+    "CHATDBG_AZURE_API_VERSION",
+    "CHATDBG_AWS_REGION",
+    "CHATDBG_SYSTEM_PROMPT_NAME",
+    "CHATDBG_LOGPROBS_ENABLED",
+    "CHATDBG_LOGPROBS_TOPK",
+    "CHATDBG_SHOW_ALL_TOKENS",
+    "CHATDBG_GRID_VIEW",
+    "CHATDBG_GRID_MAX_ALT",
+    "CHATDBG_LLAMA_CONTEXT_SIZE",
+    "CHATDBG_LLAMA_GPU_LAYERS",
+    "CHATDBG_LLAMA_GPU_DEVICE",
+    "CHATDBG_LLAMA_THREADS",
+    "CHATDBG_LLAMA_BATCH_SIZE",
+    "CHATDBG_AZURE_API_KEY",
+    "CHATDBG_AWS_ACCESS_KEY",
+    "AWS_ACCESS_KEY_ID",
+    "CHATDBG_AWS_SECRET_KEY",
+    "AWS_SECRET_ACCESS_KEY"
+   ],
+   "openDesignQuestions": [
+    "Environment prefix for sub-commands: the framework prefixes seeded environment values with '{COMMANDNAME}_', but it is not settled in ref-command.md whether that name is the root token (SET) or the sub-command (SHOW). The spec assumes the root and reads defensively (SET_FILE, then bare FILE) until the host pins it with a test.",
+    "Whether -format yaml ships in v1: it costs a YamlDotNet 16.3.0 dependency in a package that otherwise has none. JSON and CSV are sufficient for every composition in the chapter.",
+    "Profile inheritance (a 'base' field so profile B inherits A and overrides three keys) is deliberately out of v1: it turns validation into a graph problem and SET DIFF into a three-way merge.",
+    "Whether the framework's widened boolean grammar (1/0/yes/no/on/off) should be adopted for boolean keys, as specified, or narrowed back to the source's strict true/false. The spec adopts the framework grammar deliberately.",
+    "Whether a corrupt settings document should block writes until an explicit SET RESET/SET IMPORT (as specified) or be silently overwritten on the next successful write (source behaviour).",
+    "Whether the host should run 'SET SHOW -format json | SET VALIDATE -strict' at startup in place of the source's ad-hoc configuration self-check, and what it should do with a non-clean result."
+   ],
+   "newBeyondSource": [
+    "Named configuration profiles as a first-class concept: list, show, switch, save, drop, and diff (SET PROFILE, SET PROFILES, SET SAVEPROFILE, SET DROPPROFILE, SET DIFF). The source explicitly provided 'no profiles, no per-workspace settings, no config-file layering, no --config override'.",
+    "Single-value read (SET GET) \u2014 the source's only read surface was a 46-line dump.",
+    "Clearing a setting (SET UNSET). The source's arity rule rejected a bare '/set azureEndpoint' and there was no reset/unset/clear verb anywhere, so no text setting could be returned to empty from the command surface.",
+    "Restore-to-defaults (SET RESET), with -backup. The source had no reset path at all; the only way back to defaults was deleting the file out of band.",
+    "A generated, machine-readable key catalog (SET KEYS) replacing three hand-maintained, mutually inconsistent lists in the source (the ~72-line /set help, the dump's static Setup Commands block, and the 'Unknown setting' error that named 13 of ~26 keys).",
+    "Configuration validation as a tool (SET VALIDATE), including provider-name case checking, GGUF existence, prompt-name resolution, cross-platform keystore-toggle checking and plaintext-secret detection. The source validated only at the moment of a /set write; hand-edited documents were read verbatim.",
+    "Whole-document import with merge, dry-run and backup (SET IMPORT).",
+    "Machine-readable output formats (-format json|yaml|csv) on the read tools, making configuration pipeable into other packages and into a chat turn.",
+    "Publishing the effective configuration into the controller environment as CHATDBG_* keys instead of sharing a mutable settings object between commands \u2014 the fix for the source's worst bug (Q4/Q26), where the windowed shell's commands mutated and persisted a stale defaults record the UI never read.",
+    "azureApiVersion promoted to a real setting (default 2023-12-01-preview). The source hard-coded it in the request URL while /logprobs debug advised users to change an API version they had no way to change (Q33).",
+    "Explicit, always-reported clamping (-clamp / SET_STRICT) unifying the source's two contradictory out-of-range policies \u2014 text commands rejected, the windowed dialog clamped silently and ignored unparseable input entirely.",
+    "Invariant-culture parsing and formatting in every build configuration (the source used ambient culture and forced invariant only in Compact/SingleFile builds, so the same command was accepted by one binary and rejected by another).",
+    "Atomic temp-file-plus-rename document writes and a save failure that surfaces as a command failure (the source printed to stdout and still reported success \u2014 invisible in the windowed shell).",
+    "Validation parity between SET MODEL and SET VALUE modelId (the source's /model bypassed every rule /set modelId enforced on the same field).",
+    "Dry-run on every mutating tool, and confirmation-by-flag (-force plus SET_CONFIRM) instead of the source's blocking stdin prompts inside a service, which were invisible and unanswerable under the full-screen shell.",
+    "SET ENV, preserving the Xcaciv.Command built-in SET semantics after this package claims SET as a root command.",
+    "Cross-platform credential-store toggle (useOsCredentialStore, wire name unchanged) that cannot be enabled where no store exists \u2014 closing the windowed dialog's missing platform gate."
+   ],
+   "wroteFile": true
+  },
+  {
+   "wroteFile": true,
+   "tools": [
+    {
+     "command": "TOKENS",
+     "root": "VIEW",
+     "purpose": "Render token-probability records as a dense card grid or a detail table, preserving the source's 90-char ASCII frame (inner widths 7/20/12/38), 17+'...' token truncation, 7+'...' alternative truncation, responsive max(1, width/40) grid columns and the '+ N more' overflow indicator.",
+     "pipes": "filter \u2014 accepts one JSON token record per chunk, produces ResultFormat.General rendered text; overrides Main because table frames and grid row packing are not 1:1 with input chunks",
+     "origin": "ported:IConsoleFormatter.DisplayTokenGrid/DisplayTokenTable, BasicConsoleFormatter.cs:72-112, SpectreConsoleFormatter.cs:55-195, ChatShell.cs:412-687"
+    },
+    {
+     "command": "SAMPLE",
+     "root": "VIEW",
+     "purpose": "Reduce a long record stream to beginning/middle/end slices using the source's exact arithmetic (size 5, threshold 15, middle start count/2-2, end start count-5) or the 'flow' preset (size 10, threshold 30, middle start floor((count-10)/2)).",
+     "pipes": "filter \u2014 buffers the stream (bounded by -max, default 100000), re-emits surviving records unmodified and echoes the upstream OutputFormat; record indices are never rewritten",
+     "origin": "ported:E1 sampling in ChatShell.cs:435-481 / TokenProbabilityVisualizer.cs:39-88 / DemoLogProbsCommand.cs:179-200, and E2 in LogProbHeatmapView.cs:79-88"
+    },
+    {
+     "command": "HEAT",
+     "root": "VIEW",
+     "purpose": "Paint generated text as a continuous flowing paragraph with each token's background coloured by confidence, honouring the 6-band background palette and the black/white contrast flip at 0.5.",
+     "pipes": "filter \u2014 one JSON token record per chunk in, ResultFormat.General rows out; streams when drawing all records, buffers when sampling",
+     "origin": "ported:LogProbHeatmapView.cs (defined in source but never instantiated) and heat map D4"
+    },
+    {
+     "command": "TRANSCRIPT",
+     "root": "VIEW",
+     "purpose": "Render chat messages as an aligned, wrapped transcript: '[role]' banner, 2-column padding, 75% bubble width, right-aligned user messages, blank-line separation and the diamond probability marker.",
+     "pipes": "filter \u2014 one JSON chat message per chunk in, one fully rendered block per chunk out (HandlePipedChunk, genuinely 1:1)",
+     "origin": "ported:ChatWindow.cs:500-622 transcript rendering and the wrapper at :735-788"
+    },
+    {
+     "command": "LAYOUT",
+     "root": "VIEW",
+     "purpose": "Set or report layout (grid/list/flow), alternatives budget (1-20, default 5), probability precision and show-all-vs-sample volume mode; persists through the Configuration package by default.",
+     "pipes": "sink with pipe-fed parameter \u2014 ordered 'mode' declares UsePipe=true, returns empty success when piped (the framework SET idiom); emits one confirmation line when not piped",
+     "origin": "ported:/logprobs grid|list|showall|showsample|gridmaxalt and /set gridViewForTokens|showAllTokens|gridViewMaxAlternatives"
+    },
+    {
+     "command": "THEME",
+     "root": "VIEW",
+     "purpose": "Select the colour theme (auto/dark/light/contrast/mono), the colour policy (auto/always/never), the glyph policy (auto/on/off) and a fixed render width \u2014 the switches that make redirected-output degradation and deterministic tests possible.",
+     "pipes": "sink with pipe-fed parameter \u2014 ordered 'name' declares UsePipe=true; emits a confirmation line or a swatch under -preview",
+     "origin": "ported:ThemeManager.cs:16-44 supplies the dark palette slot-for-slot; the colour/glyph/width policy layer is new"
+    },
+    {
+     "command": "PALETTE",
+     "root": "VIEW",
+     "purpose": "Select or inspect the probability-to-colour mapping among the source's four contradictory heat maps, declare the scale (unit 0-1 vs percent 0-100) so values are converted rather than misread, and diagnose a single probability with -check.",
+     "pipes": "sink with pipe-fed parameter \u2014 ordered 'name' declares UsePipe=true; -show and -check produce ResultFormat.General text",
+     "origin": "ported:heat maps D1-D4 (TokenFormatters.cs:38-45, ChatShell.cs:657-672, ChatWindow.cs:99-113, LogProbHeatmapView.cs:60-77); the selection surface, scale declaration and mono palette are new"
+    },
+    {
+     "command": "PLAIN",
+     "root": "VIEW",
+     "purpose": "Strip styling markup and ANSI sequences (or escape them, or resolve them to real escapes), fold decoration to ASCII and expand tabs \u2014 the correct answer to redirected output.",
+     "pipes": "filter \u2014 one text line per chunk in, one plain line per chunk out (HandlePipedChunk); re-declares ResultFormat.General",
+     "origin": "ported:BasicConsoleFormatter.cs:17-22 and :152-179 markup stripper, plus SpectreConsoleFormatter.cs:230-235 bracket escaping"
+    },
+    {
+     "command": "WRAP",
+     "root": "VIEW",
+     "purpose": "Wrap text to a width measured in display cells rather than code units, with indent, hanging indent and alignment, clamped so no input can loop or throw.",
+     "pipes": "filter \u2014 one text line per chunk in, one wrapped block per chunk out; refuses with a Failure if the upstream chunk declares JSON rather than corrupting a record",
+     "origin": "ported:ChatWindow.cs:735-788 wrapping logic, extracted as its own bounded, cell-aware tool"
+    },
+    {
+     "command": "RULE",
+     "root": "VIEW",
+     "purpose": "Emit an 80-character horizontal rule with an optional caption, preserving the centred (exactly 80 chars) and left-justified (exactly 79 chars) geometries and the markup-stripped caption measurement.",
+     "pipes": "source \u2014 not pipeable as a filter; given piped input it returns an explanatory string and succeeds without consuming the pipe",
+     "origin": "ported:IConsoleFormatter.WriteRule and BasicConsoleFormatter.cs:41-66"
+    },
+    {
+     "command": "CAPS",
+     "root": "VIEW",
+     "purpose": "Probe the terminal once and publish width, height, colour depth, redirection, Unicode support, wide-character support, mouse support and platform as CHATDBG_VIEW_CAPS_* globals; -assume forces a fixed profile for deterministic tests and CI.",
+     "pipes": "source \u2014 produces one report chunk; declares ResultFormat.JSON under -format json because the output is genuinely machine-readable and meant to be filtered",
+     "origin": "new"
+    },
+    {
+     "command": "STATUS",
+     "root": "VIEW",
+     "purpose": "Report the current presentation settings \u2014 display mode, view mode, alternatives budget, theme, palette and scale, colour policy, glyph policy and width \u2014 with provenance under -verbose.",
+     "pipes": "source \u2014 ResultFormat.General, or ResultFormat.JSON under -format json; reads every key with storeDefault:false so asking cannot cause a write-back",
+     "origin": "ported:the display half of LogProbsCommand.cs:129-156 and the /set report lines"
+    },
+    {
+     "command": "PREVIEW",
+     "root": "VIEW",
+     "purpose": "Render a built-in deterministic fixture (seed 42, the source's 25-token sample sentence and hand-written alternative sets) through the current settings, so layout, theme and palette can be seen without a backend call.",
+     "pipes": "source \u2014 ResultFormat.General; piped input gets an explanatory refusal",
+     "origin": "new"
+    }
+   ],
+   "environmentKeys": [
+    "CHATDBG_VIEW_LAYOUT",
+    "CHATDBG_VIEW_SHOWALL",
+    "CHATDBG_VIEW_MAXALT",
+    "CHATDBG_VIEW_THEME",
+    "CHATDBG_VIEW_COLOR",
+    "CHATDBG_VIEW_UNICODE",
+    "CHATDBG_VIEW_PALETTE",
+    "CHATDBG_VIEW_SCALE",
+    "CHATDBG_VIEW_PRECISION",
+    "CHATDBG_VIEW_WIDTH",
+    "CHATDBG_VIEW_CAPS_COLUMNS",
+    "CHATDBG_VIEW_CAPS_ROWS",
+    "CHATDBG_VIEW_CAPS_COLOR",
+    "CHATDBG_VIEW_CAPS_REDIRECTED",
+    "CHATDBG_VIEW_CAPS_UNICODE",
+    "CHATDBG_VIEW_CAPS_WIDECHARS",
+    "CHATDBG_VIEW_CAPS_MOUSE",
+    "CHATDBG_VIEW_CAPS_PLATFORM",
+    "NO_COLOR",
+    "FORCE_COLOR",
+    "CLICOLOR",
+    "CLICOLOR_FORCE",
+    "COLORTERM",
+    "TERM",
+    "TERM_PROGRAM",
+    "WT_SESSION",
+    "ConEmuANSI",
+    "COLUMNS",
+    "LINES",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE"
+   ],
+   "newBeyondSource": [
+    "VIEW THEME \u2014 theme selection at all (the source applied one hard-coded dark theme unconditionally at start-up with no setting, no switcher and no way back), plus explicit colour policy (auto/always/never), glyph policy (auto/on/off) and a pinnable render width",
+    "light and contrast themes, and specified Disabled attributes for the Base/Dialog/Error slots the source left default-constructed (potentially black on black)",
+    "VIEW PALETTE \u2014 a selectable, inspectable heat map with an explicit scale declaration (unit 0-1 vs percent 0-100) that converts rather than misreads, so the source's universal-red bug cannot recur silently; plus -check to diagnose a single probability",
+    "mono palette and the -plain symbol ladder for VIEW HEAT \u2014 confidence encoded by symbol rather than colour, the accessibility channel the source entirely lacked (colour was the only channel for confidence and for message role)",
+    "VIEW CAPS \u2014 terminal capability probing and publishing (width, height, colour depth, redirection, Unicode, wide-character support, mouse, platform); the source read no environment variable on any rendering path and guarded only the zero case of its terminal-width query",
+    "-assume profile forcing on VIEW CAPS, which makes every renderer in the package a deterministic string function and enables golden-file tests where the source had no test project for either shell",
+    "VIEW WRAP \u2014 wrapping extracted as its own bounded tool, measured in display cells rather than code units, with a width floor that makes the source's infinite loop (viewport width 4-5) and negative-substring throw (width 0-3) structurally impossible",
+    "VIEW PLAIN as a first-class pipeline filter with -mode strip|escape|ansi, -ascii folding and -tabs expansion; the source's dependency-free renderer existed but no host ever selected it",
+    "VIEW PREVIEW \u2014 the rendering half of the demo, separated from data fabrication, so it works in every host (the source's plain shell drew nothing and the full-screen shell painted over its own UI)",
+    "VIEW STATUS -format json and provenance reporting under -verbose",
+    "VIEW SAMPLE -dedupe (off by default to preserve the source's overlapping slices), -max buffer ceiling, -captions gating, and a configurable slice size",
+    "VIEW RULE -char and caption truncation instead of the source's hard failure on a caption longer than 78 characters",
+    "VIEW TRANSCRIPT -timestamps and case-insensitive role matching everywhere (the source compared lower-cased in the transcript and raw elsewhere)",
+    "-nopersist on every setter, and delegation of durable writes to the single settings owner instead of each command persisting its own possibly-stale object",
+    "Unified alternatives rule: min(-alts, available) on all three surfaces, replacing the source's hard caps of 2 (plain table) and 3 (styled table) that contradicted its own documented setting",
+    "Exactly one percent sign at a pinned invariant culture, replacing the source's doubled '%' and its culture-dependent space before the sign",
+    "Cell overflow ellipsis instead of frame-breaking overflow; '(null)' and '(none)' on every surface including the two that dereferenced without a guard"
+   ],
+   "openDesignQuestions": [
+    "Chunk granularity for VIEW TOKENS output: one chunk per rendered line, per grid row, or one chunk for the whole rendering? Per-line streams best through the bounded channel but means a downstream stage sees a table in pieces; the chapter specifies per-line (list) and per-row (grid), which should be confirmed against the host's terminal sink.",
+    "VIEW SAMPLE, VIEW TOKENS (grid) and VIEW HEAT (sampling) must buffer, which defeats the framework's lazy streaming for long responses. Is the 100000-chunk default ceiling right, and should the host lower it via PipelineConfiguration.MaxChannelQueueSize instead?",
+    "The framework prefixes per-command environment keys with the COMMAND name, not the root, so a sub-command named LAYOUT or STATUS would collide across packages. The chapter routes around this with fully-qualified CHATDBG_VIEW_* globals and modifiesEnvironment:true registrations \u2014 confirm the host is willing to grant that permission to four tools.",
+    "Invoking the bare root 'VIEW' throws InvalidOperationException from CommandFactory and the async path is less forgiving than the sync one on an unknown sub-command. The host must catch and render usage; no tool can absorb it. Confirm where that mapping lives.",
+    "Should the default palette really change from the source's bands5 to bands10? The chapter argues yes (bands5 fed unit-scale values rendered every real token red), but it is a visible behavioural change and needs an explicit sign-off.",
+    "Should the plain-table alternatives cap of 2 and the styled-table cap of 3 be preserved as per-surface compatibility defaults rather than unified on the setting? The chapter unifies; a -compat flag was considered and dropped.",
+    "Should the left-justified rule stay 79 characters while the centred rule is 80? Preserved as the source's asymmetry, but it looks like a defect to anyone reading the output.",
+    "Precision default is 5 (matching both table renderers) while the shared value formatter used 2. Which should a fresh installation see?",
+    "Who owns enabling virtual-terminal processing on legacy Windows consoles \u2014 the chapter assigns it to the host at start-up and has VIEW CAPS only observe the result. Confirm.",
+    "Does the full-screen host consume VIEW TOKENS output as text into its probability panel, or does it need a structured intermediate shape? The panel's 50-column default, max(longest+5,50) sizing and 0-based numbering are host constants that the renderer's 1-based output must be reconciled with.",
+    "Should VIEW TRANSCRIPT offer any redaction hook? It renders message content verbatim, including anything a user pasted, and a host that logs its output is logging conversation content."
+   ]
+  },
+  {
+   "tools": [
+    {
+     "command": "MODEL LIST",
+     "root": "MODEL",
+     "purpose": "Enumerate every registered model backend with key, display name, readiness and active marker; emits one chunk per backend.",
+     "pipes": "source (produces piped output, one chunk per backend; refuses piped input with an explanatory chunk; overrides Main to emit multiple chunks)",
+     "origin": "ported:shell provider registry (Dictionary<string,IAIService> keyed azure/bedrock/llama) + console start-up configuration self-check block"
+    },
+    {
+     "command": "MODEL SHOW",
+     "root": "MODEL",
+     "purpose": "Describe one backend's configuration, effective request parameters after backend-specific clamping, and credential source label (never a value).",
+     "pipes": "filter (accepts piped input where one chunk = a backend key; produces one record chunk per input)",
+     "origin": "ported:`/set` with no arguments (settings listing) + console start-up banner + `LLama Configuration:` block"
+    },
+    {
+     "command": "MODEL USE",
+     "root": "MODEL",
+     "purpose": "Make a registered backend active and report its readiness; registered modifiesEnvironment:true to write CHATDBG_PROVIDER.",
+     "pipes": "filter (one chunk = one backend key; emits a confirmation row per switch)",
+     "origin": "ported:`/set provider <azure|bedrock|llama>`"
+    },
+    {
+     "command": "MODEL SELECT",
+     "root": "MODEL",
+     "purpose": "Set the model id / deployment name / weight-file handle for a backend, with per-backend validation and a -revision escape for ':'-suffixed ids stripped by the tokenizer.",
+     "pipes": "filter (one chunk = one candidate model id or handle; the safe channel for values containing ':' '/' '\\\\')",
+     "origin": "ported:`/model <id\u2026>` merged with `/set modelId <id>` (the two source commands wrote the same field under different rules)"
+    },
+    {
+     "command": "MODEL CATALOG",
+     "root": "MODEL",
+     "purpose": "List the models, deployments or GGUF files a backend can actually serve, assigning token-safe short handles; caches with TTL.",
+     "pipes": "source (one chunk per catalog row; -format ids emits bare ids for piping; refuses piped input)",
+     "origin": "new"
+    },
+    {
+     "command": "MODEL CAPS",
+     "root": "MODEL",
+     "purpose": "Report per-backend capabilities and ceilings: log-probabilities, top-K reporting max, prompt-side logprobs, streaming, tool calling, temperature/token/context ceilings, cancellation; states declared vs verified.",
+     "pipes": "filter (one chunk = one backend key in; one chunk per backend or per capability row out)",
+     "origin": "new"
+    },
+    {
+     "command": "MODEL TEST",
+     "root": "MODEL",
+     "purpose": "Six-stage end-to-end probe: configured, credential source, shape, reachable, entitled (-deep, billable), capability agreement.",
+     "pipes": "filter (one chunk = one backend key in; one chunk per stage out, failed stages followed by 'skipped' successes)",
+     "origin": "new"
+    },
+    {
+     "command": "MODEL LOAD",
+     "root": "MODEL",
+     "purpose": "Bring a GGUF weight file resident with its hardware-acceleration settings; strict teardown ordering on reload; -force applies changed hardware settings the source could only apply on a path change.",
+     "pipes": "filter (one chunk = one weight path or catalog handle, loaded in sequence with unload between; one summary chunk per load)",
+     "origin": "ported:LLamaSharpService.EnsureModelLoadedAsync (private lazy first-chat-turn side effect, promoted to an explicit tool)"
+    },
+    {
+     "command": "MODEL UNLOAD",
+     "root": "MODEL",
+     "purpose": "Release the resident weight file, context and session; idempotent; confirmation-gated because it discards the engine's retained conversation state.",
+     "pipes": "sink / not-pipeable (declines piped input with an explanatory chunk; emits one summary chunk, or none with -quiet)",
+     "origin": "ported:LLamaSharpService.Dispose teardown path (reachable only at shell shutdown, and only from one of the two shells)"
+    },
+    {
+     "command": "MODEL STATUS",
+     "root": "MODEL",
+     "purpose": "Report what is resident locally \u2014 path, size, load time, effective hardware settings, bound native backend and RID, honest context accounting \u2014 plus a drift table of settings that differ from the resident load.",
+     "pipes": "source (one chunk per group: model, hardware, context, drift; refuses piped input)",
+     "origin": "new"
+    },
+    {
+     "command": "MODEL TUNE",
+     "root": "MODEL",
+     "purpose": "Persist the five local hardware-acceleration settings (context, gpu-layers, threads, batch, device) with reject-not-clamp validation; -apply reloads so they take effect now; modifiesEnvironment:true.",
+     "pipes": "source (one confirmation chunk; refuses piped input)",
+     "origin": "ported:`/set llamaContextSize|llamaGpuLayers|llamaGpuDevice|llamaThreads|llamaBatchSize` and the windowed shell's 'LLama Settings' tab"
+    }
+   ],
+   "environmentKeys": [
+    "CHATDBG_PROVIDER",
+    "CHATDBG_MODEL_ID",
+    "CHATDBG_AZURE_ENDPOINT",
+    "CHATDBG_AZURE_API_VERSION",
+    "CHATDBG_AWS_REGION",
+    "CHATDBG_TEMPERATURE",
+    "CHATDBG_MAX_TOKENS",
+    "CHATDBG_LOGPROBS_ENABLED",
+    "CHATDBG_LOGPROBS_TOPK",
+    "CHATDBG_LLAMA_CONTEXT_SIZE",
+    "CHATDBG_LLAMA_GPU_LAYERS",
+    "CHATDBG_LLAMA_GPU_DEVICE",
+    "CHATDBG_LLAMA_THREADS",
+    "CHATDBG_LLAMA_BATCH_SIZE",
+    "CHATDBG_MODEL_PATHS",
+    "CHATDBG_SYSTEM_PROMPT_BODY",
+    "CHATDBG_USE_OS_KEYSTORE",
+    "CHATDBG_AZURE_API_KEY",
+    "CHATDBG_AWS_ACCESS_KEY",
+    "CHATDBG_AWS_SECRET_KEY",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+    "LIST_FORMAT",
+    "USE_PREVIOUS",
+    "CATALOG_FETCHED_AT",
+    "TEST_LAST_RESULT",
+    "TEST_LAST_RUN_AT",
+    "LOAD_RESIDENT_PATH",
+    "LOAD_RESIDENT_AT",
+    "LOAD_EFFECTIVE_CONTEXT",
+    "LOAD_EFFECTIVE_GPU_LAYERS"
+   ],
+   "openDesignQuestions": [
+    "Argument tokenization strips ':' '/' '\\\\' and '=' even inside quoted spans (NamesValidator.InvalidParameterChars), so no filesystem path, endpoint URL, or Bedrock model id such as 'anthropic.claude-3-sonnet-20240229-v1:0' can survive the command line. The chapter routes around it with catalog handles, piped values, and a -revision parameter \u2014 but if the framework ever relaxes the filter, MODEL SELECT and MODEL LOAD should take raw values directly and the workaround should be retired.",
+    "GetDefaultEnvironment() values are seeded under the SUB-COMMAND name prefix (LOAD_, TEST_, CATALOG_), not the root, so private-bucket keys can collide with an identically-named sub-command in another package. Confirm whether the host should namespace buckets, or whether this package should abandon the private bucket entirely and keep its breadcrumbs in the process singleton.",
+    "Should the local satellite assembly be run out of process by default? An access violation inside the native engine is uncatchable and kills the shell with the user's unsaved conversation; a supervised subprocess isolates it but loses raw logits, prompt-token logits and custom sampling stages.",
+    "The source clamped the request-side top-K to 1-20 AND used the same setting as the local sampler's top-K, so local generation was always top-5 limited out of the box even with introspection off. Decide whether MODEL TUNE should expose a separate sampler top-K, or whether the coupling stays (and is merely disclosed by MODEL CAPS).",
+    "Fabricated log-probabilities are removed. Confirm with the product owner that the demo affordance the fabrication served is fully covered by an explicit demo command elsewhere, since MODEL CAPS will now report 'logprobs: no' for Bedrock where the source silently showed a populated visualisation.",
+    "Bedrock family detection is widened from the source's bare 'anthropic.' prefix to '^(?:[a-z]{2}\\\\.)?anthropic\\\\.' so cross-region inference profiles match. Confirm no other geography prefix shape is in use before pinning that regex.",
+    "The generation and model-load locks are process-wide, unbounded and un-cancellable in the source. This chapter specifies a bounded wait plus a status message; the timeout value is not yet chosen.",
+    "Catalog TTLs (15 min cloud, 60 s local) and the handle-stability guarantee are asserted, not derived from any source behaviour; they need a product decision.",
+    "MODEL CAPS -probe on a cloud backend can cost a billable completion. Confirm whether the default should stay 'declared only' or whether a host-level policy should forbid -probe entirely in shared/CI contexts."
+   ],
+   "newBeyondSource": [
+    "MODEL CATALOG \u2014 model/deployment/weight-file discovery with token-safe short handles; the source had zero model-id validation on any path and shipped a default ('gpt-4') that is not a valid Bedrock identifier.",
+    "MODEL CAPS \u2014 an honest per-backend capability and ceiling report (logprobs, top-K max, prompt-side logprobs, streaming, tool calling, temperature/token/context ceilings, cancellation), with an explicit declared-vs-verified distinction.",
+    "MODEL TEST \u2014 a six-stage connectivity/credential/entitlement probe; the source performed no URL parsing, no scheme check, no key-shape check and no connectivity probe anywhere.",
+    "MODEL STATUS \u2014 reports what is actually resident plus a drift table naming every configured value that differs from the loaded one; the source silently ignored hardware and system-prompt changes until the model path changed or the process restarted.",
+    "-timeout on MODEL TEST (clamped 1-300s) \u2014 the source configured no timeout anywhere; the only bound was the transport's ~100s default.",
+    "-force on MODEL LOAD and -apply on MODEL TUNE \u2014 the escape hatch for the source's path-change-only reload rule.",
+    "Threads, batch size and GPU device are actually applied to inference; the source validated, persisted and displayed all three and never passed them to the engine.",
+    "-no-mmap and -mlock flags \u2014 the source hard-wired memory-mapping on and memory-locking off with no override.",
+    "-revision on MODEL SELECT \u2014 reassembles a ':'-delimited model version suffix that the framework's argument tokenizer strips.",
+    "Cancellation of an in-flight turn is reported as a capability; the source threaded no cancellation token anywhere in the product.",
+    "AWS_SESSION_TOKEN support is declared and reported by MODEL TEST; the source read no session token, so temporary/STS credentials in the environment were silently downgraded to a key pair and failed authentication.",
+    "Azure API version is a settings key (defaulting to the source's hard-coded 2023-12-01-preview) rather than an uneditable literal.",
+    "GGUF magic-number check as a warning at MODEL SELECT and a stage in MODEL TEST; the source treated any existing file, including a zero-byte one, as a configured model.",
+    "Bedrock family detection widened to match cross-region inference profiles (us.anthropic.*) that the source's bare 'anthropic.' prefix test routed down the wrong payload path.",
+    "Fabricated ('simulated') log-probabilities are removed outright; MODEL CAPS plus a capability-gated TOKEN LOGPROBS ENABLE replace them.",
+    "Upstream error bodies are truncated to 200 characters and credential-masked before display; the source echoed entire upstream error pages into the terminal.",
+    "OS keystore unavailability is reported explicitly ('unavailable on this platform') instead of degrading silently, and MODEL LOAD degrades to CPU with a named warning when no GPU backend exists for the RID.",
+    "Package split into a restricted-host-safe primary assembly and a native-dependent satellite, merged under one MODEL root."
+   ],
+   "wroteFile": true
+  },
+  {
+   "tools": [
+    {
+     "command": "CHAT SEND",
+     "root": "CHAT",
+     "purpose": "Send a conversational turn to the active model backend and stream the reply, recording both sides in the conversation record; carries per-turn overrides for provider, model, temperature, max tokens, log probabilities, top-K, system prompt, streaming, output format and timeout.",
+     "pipes": "both \u2014 accepts piped input (one chunk = one complete user turn, sent as an independent request) and produces piped output (one chunk per streamed segment plus a terminal elapsed-time chunk); overrides Main to emit multiple chunks on the non-piped path",
+     "origin": "ported:the console shell's chat-turn path (any typed line not beginning with '/'), ChatShell.SendMessageAsync src/ChatDbg/ChatShell.cs:343-410"
+    },
+    {
+     "command": "CHAT APPEND",
+     "root": "CHAT",
+     "purpose": "Append a fabricated turn (role + content) to the end of the conversation record without calling any model; can set the dormant isCommand flag so backends exclude the message from every request.",
+     "pipes": "both \u2014 one piped chunk is the content of one message appended with the command-line role; emits one confirmation chunk per append (silent under -quiet via an empty success)",
+     "origin": "ported:ChatHistory.AddMessage(role, content, isCommand, logProbabilities) Models/ChatHistory.cs:14-24 \u2014 a real product operation with no user-facing command"
+    },
+    {
+     "command": "CHAT INJECT",
+     "root": "CHAT",
+     "purpose": "Insert a fabricated turn at a chosen zero-based position in the record, with the source's role whitelist and out-of-range-appends rule preserved and its last-positional-token position parsing deliberately replaced by a named -position parameter.",
+     "pipes": "both \u2014 one piped chunk is one message body, chunk n inserted at position + n so upstream order is preserved; one confirmation chunk per injection",
+     "origin": "ported:/inject <role> <message> [position] Commands/InjectCommand.cs and Models/ChatHistory.cs:34-51"
+    },
+    {
+     "command": "CHAT POP",
+     "root": "CHAT",
+     "purpose": "Remove the last message (or the last N) from the record and emit the removed messages so they can be saved before they are lost; preserves the 50-character preview default while fixing the unconditional ellipsis and the UTF-16 mid-surrogate cut.",
+     "pipes": "source (output only) \u2014 refuses piped input with an explanatory string; emits one chunk per removed message newest-first plus a summary; overrides Main for -count > 1",
+     "origin": "ported:/pop Commands/PopCommand.cs and Models/ChatHistory.cs:26-32"
+    },
+    {
+     "command": "CHAT CLEAR",
+     "root": "CHAT",
+     "purpose": "Empty the conversation record, optionally preserving system-role turns, optionally minting a new session identifier, and optionally writing a backup file first; preserves 'Cleared 0 messages' as a success and the rule that session id and creation timestamp survive.",
+     "pipes": "not-pipeable \u2014 refuses piped input, emits one output chunk",
+     "origin": "ported:/clear Commands/ClearCommand.cs and Models/ChatHistory.cs:53-56"
+    },
+    {
+     "command": "CHAT LIST",
+     "root": "CHAT",
+     "purpose": "Emit the conversation record one message per chunk, filtered by role and range, in text, JSON or CSV \u2014 the pipeline source every other tool composes against.",
+     "pipes": "source \u2014 refuses piped input; emits one chunk per message; declares ResultFormat.JSON or .CSV so downstream tools branch on format rather than sniffing; overrides Main",
+     "origin": "new"
+    },
+    {
+     "command": "CHAT EXPORT",
+     "root": "CHAT",
+     "purpose": "Write the conversation record to a file, byte-compatible with the source's JSON format (key order, 2-space indent, seven-digit UTC fractional seconds, aggressive escaping, shortest-round-trip numbers), plus new jsonl/md/text formats, atomic temp-and-rename writes and optional export-root containment.",
+     "pipes": "both (sink-leaning) \u2014 one piped chunk is one message record in the -format shape, written instead of the live record; emits one summary chunk",
+     "origin": "ported:/export <file_path> Commands/ExportCommand.cs and Services/ChatHistoryService.cs:29-43"
+    },
+    {
+     "command": "CHAT IMPORT",
+     "root": "CHAT",
+     "purpose": "Load a conversation record from a file, replacing or appending, with a new default of warn-level role validation, a 32 MiB size cap, and optional import-root containment; preserves in-place mutation of the live record, session-id overwrite and the no-extension-defaulting asymmetry.",
+     "pipes": "both \u2014 one piped chunk is one file path imported in order; emits one summary chunk per path, or one chunk per message under -emit; overrides Main for -emit",
+     "origin": "ported:/import <file_path> Commands/ImportCommand.cs and Services/ChatHistoryService.cs:45-65"
+    },
+    {
+     "command": "CHAT SESSIONS",
+     "root": "CHAT",
+     "purpose": "List saved conversation sessions with name, message count, created and last-used timestamps and an active marker, sortable and filterable, in text, JSON or CSV.",
+     "pipes": "source \u2014 refuses piped input; emits one chunk per session; unparseable session files are skipped as isolated failures; overrides Main",
+     "origin": "new"
+    },
+    {
+     "command": "CHAT USE",
+     "root": "CHAT",
+     "purpose": "Switch the active conversation session, creating it when absent or forking the current record into it, saving the current session first by default; writes CHAT_SESSION into the package environment bucket, which is how every other tool sees the switch.",
+     "pipes": "both \u2014 the ordered name parameter declares UsePipe, so one piped chunk is one session name; emits one confirmation chunk per switch and warns when more than one name arrives",
+     "origin": "new"
+    },
+    {
+     "command": "CHAT NAME",
+     "root": "CHAT",
+     "purpose": "Show, set or rename the current session's friendly name, and optionally pin its session identifier to a specific UUID for reproducible experiments.",
+     "pipes": "source (output only) \u2014 refuses piped input because a rename per chunk is meaningless and destructive; emits one chunk",
+     "origin": "new"
+    },
+    {
+     "command": "CHAT RETRY",
+     "root": "CHAT",
+     "purpose": "Discard the last reply and re-send the preceding user turn with per-invocation overrides (temperature, model, provider, top-K, system prompt), optionally emitting the discarded reply first \u2014 the product's central compare-two-settings loop as one command.",
+     "pipes": "source (output only) \u2014 refuses piped input; emits the discarded reply under -keep, then the streamed reply chunks, then an elapsed-time chunk; overrides Main",
+     "origin": "new"
+    }
+   ],
+   "environmentKeys": [
+    "CHATDBG_PROVIDER",
+    "CHATDBG_MODEL_ID",
+    "CHATDBG_TEMPERATURE",
+    "CHATDBG_MAX_TOKENS",
+    "CHATDBG_ENABLE_LOGPROBS",
+    "CHATDBG_LOGPROBS_TOPK",
+    "CHATDBG_SYSTEM_PROMPT_NAME",
+    "CHAT_SESSION",
+    "CHAT_SESSION_ID",
+    "CHAT_SESSION_ROOT",
+    "CHAT_TURN_COUNT",
+    "CHAT_LAST_ELAPSED_MS",
+    "CHAT_LAST_TURN_ROLE",
+    "CHAT_LAST_EXPORT_PATH",
+    "CHAT_LAST_IMPORT_PATH",
+    "CHAT_EXPORT_ROOT",
+    "CHAT_IMPORT_ROOT"
+   ],
+   "openDesignQuestions": [
+    "Environment prefix confirmation: sub-commands are dispatched through their root, so the key CommandController passes to GetChild(commandName) should be CHAT, not SEND \u2014 meaning all twelve tools share one environment bucket keyed CHAT_. The chapter states this and flags it for verification at integration; if the framework actually keys per sub-command, every GetDefaultEnvironment declaration and every prefixed read in the package changes.",
+    "How IConversationBackend reaches a tool when the package is crawled from the plugin directory rather than registered in-process. CommandFactory only consults an IServiceProvider when Type.GetType resolves the type, which it will not for an isolated AssemblyContext load. The chapter's answer is that SEND/RETRY degrade with a stated failure in that case, but a host that wants a crawled package to talk to a backend needs a mechanism the framework does not currently offer.",
+    "Whether CHAT EXPORT should keep the source's silent overwrite as the default (chosen) or flip to -noclobber-by-default. The chapter preserves silent overwrite and removes the actual harm via atomic temp-and-rename, but this is the one preserved quirk most likely to be challenged.",
+    "Whether restoring the imported createdAt (a deliberate correction of source quirk Q7) can break byte-for-byte round-trip expectations for anyone diffing exported files against source-produced ones.",
+    "Confirmation UX inside a pipeline: PromptForCommand is only defined when HasPipedInput is false, so POP -count>1, CLEAR and RETRY refuse rather than prompt. If the host later gains an out-of-band confirmation channel, that refusal should become a prompt.",
+    "Whether -validate should default to warn (chosen) or off (exact source behaviour). warn changes observable output for existing files containing non-whitelisted roles.",
+    "Session file format and whether a session file is simply an exported conversation document plus a name/lastUsed sidecar, or a distinct schema. The chapter assumes the former but does not pin it.",
+    "Audit masking: the framework's shipped AuditMaskingConfiguration.ApplyMasking only rewrites -name=value tokens and is effectively non-functional for space-separated syntax, so CHAT SEND's full prompt text lands in audit events verbatim. The host must supply its own IAuditMaskingConfiguration; the exact contract for that is left to the host chapter."
+   ],
+   "newBeyondSource": [
+    "Streaming replies (CHAT SEND -stream on, default) \u2014 the source blocked the prompt until the provider answered, with no streaming, spinner, elapsed display or cancellation.",
+    "Per-turn transient overrides for provider, model, temperature, max tokens, top-K and system prompt that never touch the persisted settings.",
+    "Request timeout (-timeout) \u2014 the source had no cancellation token anywhere in the product.",
+    "CHAT LIST \u2014 the conversation record is emitted as chunks; the plain-console source could not display the record at all, and the pipeline needs a source.",
+    "CHAT RETRY \u2014 discard the last reply and re-send the preceding user turn with different settings, optionally emitting the discarded reply; replaces a manual pop-and-retype sequence.",
+    "Named, listable, switchable, forkable sessions (CHAT SESSIONS / CHAT USE / CHAT NAME) with a persistent session store \u2014 the source had no autosave, no autoload, and a session id nothing ever read.",
+    "CHAT POP -count and structured JSON output of removed messages, making a pop recoverable by piping it to CHAT EXPORT.",
+    "CHAT CLEAR -keep system, -newsession and -backup.",
+    "CHAT APPEND -command, which makes the record's dormant isCommand flag reachable (nothing in the source ever set it).",
+    "Confirmation prompts on destructive operations (POP -count>1, CLEAR, RETRY, IMPORT replace) \u2014 the source had none anywhere, and its GUI put Clear History one keystroke from Pop Last Message.",
+    "Atomic export (temp file + rename) replacing the source's in-place whole-file overwrite that could leave a truncated file where a valid history used to be.",
+    "Underlying failure reasons delivered in the failure chunk instead of printed to stdout \u2014 the source's persistence diagnostics painted over the full-screen shell and left the user a cause-free message.",
+    "Import safety: -validate warn|off|strict role checking (the source validated nothing) and -maxbytes with a 32 MiB default (the source read whole files with no cap).",
+    "Optional path containment via CHAT_EXPORT_ROOT / CHAT_IMPORT_ROOT plus session-name sanitization and component-wise, symlink-resolved containment \u2014 the source had no path restrictions whatsoever.",
+    "Additional export formats: jsonl, md and text alongside the byte-compatible json.",
+    "Corrections to misleading output: inject reports the index actually used; pop appends '...' only when truncation occurred and cuts on grapheme boundaries; import restores the createdAt it used to discard; role matching for filtering is case-insensitive everywhere.",
+    "-norecord on CHAT SEND, to ask a question without polluting the context under test.",
+    "A note emitted when the active backend is llama and an edited turn is one the local path ignores (the source's local paths read only the last user message and ignored the isCommand flag silently)."
+   ],
+   "wroteFile": true
+  },
+  {
+   "tools": [
+    {
+     "command": "CRED LIST",
+     "root": "CRED",
+     "purpose": "List every credential slot with a masked status (***set*** / (not set)) and the channel it resolved from, never a value.",
+     "pipes": "filter (accepts piped slot ids via UsePipe; emits one row chunk per slot; also runs as a source with no pipe)",
+     "origin": "ported:credential block of bare `/set` (SetCommand.cs:401-463) + ChatSettings.GetCredentialSource"
+    },
+    {
+     "command": "CRED SOURCE",
+     "root": "CRED",
+     "purpose": "Report which tier supplied one credential, with -all expanding the full priority ladder and marking the winner.",
+     "pipes": "filter (one piped chunk = one slot id; one provenance chunk out; source when unpiped)",
+     "origin": "ported:ChatSettings.GetCredentialSource(string) + the startup 'credentials loaded from:' line"
+    },
+    {
+     "command": "CRED SET",
+     "root": "CRED",
+     "purpose": "Store a secret in an OS secret store. Deliberately has NO value parameter - the secret arrives from a no-echo prompt or as one piped chunk.",
+     "pipes": "filter/sink (one piped chunk = one complete secret value; emits one confirmation chunk)",
+     "origin": "ported:/set wincred <credential-type> <value> (SetCommand.cs:228-250, SettingsService.cs:145-194)"
+    },
+    {
+     "command": "CRED ROTATE",
+     "root": "CRED",
+     "purpose": "Replace a stored secret, verify by read-back, optionally keep a backup entry, and warn when a higher-priority tier still shadows the new value.",
+     "pipes": "filter/sink (one piped chunk = the new secret value; emits one summary chunk)",
+     "origin": "new"
+    },
+    {
+     "command": "CRED REMOVE",
+     "root": "CRED",
+     "purpose": "Delete a credential entry from a store and/or clear the deprecated plaintext settings field; idempotent, confirmed, never touches the environment tier.",
+     "pipes": "filter (one piped chunk = one slot id; one outcome chunk per deletion)",
+     "origin": "new (wires up the source's dead CredDelete primitive, WindowsCredentialManager.cs:148-163, zero call sites)"
+    },
+    {
+     "command": "CRED ENABLE",
+     "root": "CRED",
+     "purpose": "Enable the OS secret-store credential tier after explicit y/yes consent, selecting a backend; declining is a success, not a failure.",
+     "pipes": "source (refuses piped input with an explanatory string - consent must not derive from an upstream stage)",
+     "origin": "ported:/set enablewincred + the true half of /set useWindowsCredentialManager"
+    },
+    {
+     "command": "CRED DISABLE",
+     "root": "CRED",
+     "purpose": "Disable the secret-store tier (always permitted on every platform), optionally purging every ChatDbg entry from the backend.",
+     "pipes": "source (refuses piped input)",
+     "origin": "ported:the false half of /set useWindowsCredentialManager"
+    },
+    {
+     "command": "CRED STORES",
+     "root": "CRED",
+     "purpose": "Enumerate secret-store backends with LIVE availability, capabilities, roaming/encryption facts, max secret length and the reason any backend is unusable.",
+     "pipes": "source (one chunk per backend; refuses piped input)",
+     "origin": "new (replaces WindowsCredentialManager.IsAvailable's bare 'is the OS Windows' test)"
+    },
+    {
+     "command": "CRED MIGRATE",
+     "root": "CRED",
+     "purpose": "Move credentials out of the deprecated settings-file fields into a store or environment variables, emitting placeholders instead of plaintext, with per-slot truthful outcomes and abort-before-purge safety.",
+     "pipes": "filter (one piped chunk = one slot id; one outcome chunk per slot plus a summary)",
+     "origin": "ported:/set migrate wizard (SettingsService.cs:196-268), env-instruction printer (:328-360), bulk vault migration (:289-326)"
+    },
+    {
+     "command": "CRED SCAN",
+     "root": "CRED",
+     "purpose": "Find plaintext credentials on disk or occupied environment variables and report them with salted 4-char fingerprints, severities and file-permission findings - never a value.",
+     "pipes": "filter (one piped chunk = one filesystem path; one chunk per finding; source when unpiped)",
+     "origin": "new (ancestor: the load-time plaintext warning and ChatSettings.HasPlaintextCredentials)"
+    },
+    {
+     "command": "CRED REDACT",
+     "root": "CRED",
+     "purpose": "Mask live credential values and credential-shaped patterns in text flowing through the pipe; overrides Main so it also scrubs upstream FAILURE chunks' ErrorMessage.",
+     "pipes": "filter (requires piped input; one chunk in, one chunk out, preserving IsSuccess, CorrelationId and OutputFormat)",
+     "origin": "new"
+    },
+    {
+     "command": "CRED ENV",
+     "root": "CRED",
+     "purpose": "Name the environment variables each slot reads, in priority order, with occupancy and shell-specific copy-paste templates carrying placeholders.",
+     "pipes": "filter (one piped chunk = one slot id; source when unpiped)",
+     "origin": "new (the source documented none of the five variable names in its README)"
+    },
+    {
+     "command": "CRED DOCTOR",
+     "root": "CRED",
+     "purpose": "Diagnose credential readiness per provider end to end - both halves of a key pair individually, winning tier, shadowing, store reachability, the SDK ambient chain, plaintext copies and file permissions - with remediation text.",
+     "pipes": "filter (one piped chunk = one provider name; one chunk per check plus a verdict; source when unpiped)",
+     "origin": "ported:startup credential diagnostics (ChatShell.cs:239-321), with the half-key-pair and wrong-provenance defects corrected"
+    }
+   ],
+   "environmentKeys": [
+    "CHATDBG_AZURE_API_KEY",
+    "CHATDBG_AWS_ACCESS_KEY",
+    "AWS_ACCESS_KEY_ID",
+    "CHATDBG_AWS_SECRET_KEY",
+    "AWS_SECRET_ACCESS_KEY",
+    "SHELL",
+    "ComSpec",
+    "PSModulePath",
+    "CRED_STORE_ENABLED",
+    "CRED_STORE_BACKEND",
+    "CRED_PROFILE",
+    "CRED_SETTINGS_PATH",
+    "CRED_CONFIRM",
+    "CRED_REDACT_TOKEN",
+    "CRED_REDACT_MODE",
+    "CRED_REDACT_MINLENGTH",
+    "CRED_REDACT_COUNT",
+    "CRED_LAST_WRITE_SLOT",
+    "CRED_LAST_WRITE_BACKEND",
+    "CRED_LAST_ROTATE_SLOT",
+    "CRED_LAST_ROTATE_UTC",
+    "CRED_LAST_REMOVE_SLOT",
+    "CRED_LAST_MIGRATION_UTC",
+    "CRED_LAST_SCAN_FINDINGS",
+    "CRED_LAST_DOCTOR_VERDICT",
+    "SET_PROVIDER",
+    "SET_AZUREENDPOINT",
+    "SET_AWSREGION",
+    "SET_MODELID"
+   ],
+   "openDesignQuestions": [
+    "Generalizing the store tier off Windows contradicts a source test that asserts a vault write returns false on every non-Windows host (WindowsCredentialManagerTests.cs:18-26). The spec deliberately generalizes; that test must be rewritten as 'wincred is unavailable off Windows' rather than deleted, and the product owner must sign off on the change.",
+    "Ownership of the settings-file tier: CRED emits `SET CLEARCRED <slot>` request chunks rather than editing settings.json. That inter-package request protocol is asserted here but not specified anywhere - the SET package chapter must define the chunk grammar, or the two packages must agree on a shared contract assembly.",
+    "The no-echo prompt convention (a prompt string prefixed `secret:` is read with echo suppressed) is a HOST requirement that IIoContext cannot express - PromptForCommand takes only a string. Either the ChatDbg IO context adopts the sentinel convention, or the framework needs a PromptForSecret member.",
+    "Whether `encfile` should exist at all. It is the only tier where this package stores a secret itself, and on a platform with no OS keystore it is either a real improvement over plaintext or a false sense of security depending on how the key is derived. The key-derivation policy is unspecified here.",
+    "Whether the per-machine salt used for CRED SCAN fingerprints should be shared across machines so that two machines' scans can be compared. Sharing it makes fingerprints correlatable (useful for fleet audits) and slightly more attackable.",
+    "The AWS provider's fallback to the SDK's own ambient credential chain is a fourth, undocumented credential channel the rebuild inherits unless it is closed. CRED DOCTOR reports it; nobody has decided whether the provider package should disable it.",
+    "Whether CRED ENABLE/DISABLE should be registered with modifiesEnvironment:true so the store flag is a global variable. The spec recommends no (CRED_-prefixed keys reach the private bucket without the grant), but that makes the flag invisible to tools that do not know the bucket convention.",
+    "Backup entries created by CRED ROTATE -keepbackup have no expiry and no lifecycle. Nothing prunes them, which reintroduces a milder version of the source's 'stored secrets are never cleaned up' problem."
+   ],
+   "newBeyondSource": [
+    "Cross-platform secret stores: macOS Keychain, Linux Secret Service/libsecret, and an encrypted-file fallback, alongside the byte-compatible Windows Credential Manager backend (the source was Windows-only, with a test pinning the refusal).",
+    "Secret deletion (CRED REMOVE) - the source shipped a CredDelete primitive with zero call sites in the entire repository, so revocation was impossible inside the product.",
+    "Secret rotation with read-back verification, optional backup entry, and a warning when a higher-priority tier still shadows the newly rotated value (CRED ROTATE).",
+    "Secrets never travel as command-line parameters - forced by the framework's argument scrubber (which deletes / \\ = + : ; from arguments) and by the fact that AuditMaskingConfiguration only masks -name=value tokens. Values arrive from a no-echo prompt or one piped chunk.",
+    "A pipeline-native redactor (CRED REDACT) that overrides Main so it scrubs upstream FAILURE chunks' ErrorMessage too, making any other package's output safe by composition.",
+    "A plaintext-leak scanner (CRED SCAN) reporting salted 4-character fingerprints instead of values, plus settings-file permission and temp-directory-location findings the source never checked.",
+    "Live backend probing (CRED STORES -probe) with distinct reasons, replacing the source's bare 'is the OS Windows' availability test which declared a policy-disabled Windows credential service available.",
+    "An environment-channel discovery tool (CRED ENV) naming all five variables, their priority order and their occupancy - the source's README documented none of them.",
+    "A credential readiness diagnostic (CRED DOCTOR) that checks BOTH halves of a key pair individually and reports the provider SDK's ambient credential chain as a visible fourth channel, correcting two source defects.",
+    "Credential profiles (-profile) namespacing store entries as ChatDbg:<profile>:<Slot>, so one OS user can keep two ChatDbg configurations apart.",
+    "Value validation before storage: empty rejection, a stated 1280-UTF-16-character ceiling, and control-character rejection - the source performed no check at all.",
+    "Truthful outcome reporting: declining consent is a success rather than 'Failed to enable...'; migration reports per-slot results instead of always returning success; store, save and OS failures surface their real reason instead of being swallowed at two nested layers.",
+    "Dry-run planning (CRED MIGRATE -dryrun) and unattended operation (-yes) so credential custody can run in CI without blocking on a prompt nobody can answer.",
+    "A four-outcome resolution report that distinguishes 'store error' from 'entry not found' from 'not supported on this platform' - the source collapsed all three into a silent null.",
+    "Structured, non-disclosing audit records per operation (slot, tier, backend, profile, outcome). The source had no logging or audit of credential operations of any kind."
+   ],
+   "wroteFile": true
+  },
+  {
+   "wroteFile": true,
+   "tools": [
+    {
+     "command": "CAPTURE",
+     "root": "TOKEN",
+     "purpose": "Configure per-token confidence capture: on/off, top-K 1-20 (default 5), display mode, layout, grid max alternatives, sample size, generation budget, low-confidence threshold; bare form reports status.",
+     "pipes": "neither by default (empty success, like built-in SET); source with -print (key=value lines); filter when fed key=value assignments",
+     "origin": "ported:/logprobs [enable|disable|top n|showall|showsample|grid|list|gridmaxalt n] and /set enableLogProbabilities|logProbabilitiesTopK|showAllTokens|gridViewForTokens|gridViewMaxAlternatives"
+    },
+    {
+     "command": "DIAG",
+     "root": "TOKEN",
+     "purpose": "Explain why token confidence is or is not available: current policy, provider/model, backend capability probe, and the actual API version the provider will send.",
+     "pipes": "source",
+     "origin": "ported:/logprobs debug"
+    },
+    {
+     "command": "SPLIT",
+     "root": "TOKEN",
+     "purpose": "Split text into model tokens with real decoded text, vocabulary IDs and character spans; emits an analysis document.",
+     "pipes": "both (source: overrides Main to emit analysis chunk + one token chunk per token; filter: one piped chunk = one text to tokenize)",
+     "origin": "ported:/tokenize (TokenizeCommand) and TokenInspectionService.AnalyzePrompt"
+    },
+    {
+     "command": "MAP",
+     "root": "TOKEN",
+     "purpose": "Map the probability distribution the model weighed at each generation step: chosen token plus top-K alternatives, streamed as generation proceeds.",
+     "pipes": "both (source streams one chunk per generated token; filter: one piped chunk = one prompt)",
+     "origin": "ported:TokenInspectionService.GenerateProbabilityMap and /inspect stage D"
+    },
+    {
+     "command": "ATTRIBUTE",
+     "root": "TOKEN",
+     "purpose": "Attribute each generated token to the prompt tail or the look-back window of prior tokens that influenced it, with a real recency weight and a named method.",
+     "pipes": "both (filter-shaped: passes analysis/token chunks through and interleaves attribution chunks)",
+     "origin": "ported:/inspect stage E and TokenInspectionService.BuildAttributionMap"
+    },
+    {
+     "command": "INSPECT",
+     "root": "TOKEN",
+     "purpose": "Composite run: tokenize, generate, map probabilities and attribute in one analysis, with a pipeline-safe consent gate via io.PromptForCommand and a -yes bypass.",
+     "pipes": "both (source and filter, emitting the union of all three stages for one analysis id)",
+     "origin": "ported:/inspect (InspectCommand)"
+    },
+    {
+     "command": "STATS",
+     "root": "TOKEN",
+     "purpose": "Compute entropy (truncated top-K, nats or bits), normalized entropy, perplexity, mean negative log-likelihood, margin, confidence-band counts and low-confidence ratio over an analysis.",
+     "pipes": "both (overrides Main: passes every chunk through and appends one stats chunk per analysis id at end of stream; -perstep enriches token chunks in place)",
+     "origin": "new"
+    },
+    {
+     "command": "FILTER",
+     "root": "TOKEN",
+     "purpose": "Keep only token records matching a confidence predicate (-below/-above/-band/-marginbelow/-range), or apply the source's beginning/middle/end sampling rule; rejects via empty-success so the host drops them.",
+     "pipes": "filter (primary form); also operates on a named or last analysis when not piped",
+     "origin": "new"
+    },
+    {
+     "command": "SHOW",
+     "root": "TOKEN",
+     "purpose": "Render an analysis as readable text in list or grid layout, preserving the source's escaping, 2-decimal percentage format and '(+ N more)' alternatives suffix; marks synthetic and estimated data.",
+     "pipes": "sink-shaped filter (one document record in, rendered lines out as ResultFormat.General)",
+     "origin": "ported:show-analysis (ShowTokenAnalysisCommand stub) and the console shell's render path"
+    },
+    {
+     "command": "EXPORT",
+     "root": "TOKEN",
+     "purpose": "Write an analysis to json/jsonl/csv/md in the analysis directory, with -redact to strip all content and keep the numbers, and confirmation before overwrite.",
+     "pipes": "sink (accumulates a piped analysis stream, writes one file per analysis id, emits one confirmation line)",
+     "origin": "ported:export-analysis (ExportTokenAnalysisCommand stub) and LLamaSharpService.SaveAnalysesToJson"
+    },
+    {
+     "command": "LOAD",
+     "root": "TOKEN",
+     "purpose": "Read a previously exported analysis back into the session and stream it record by record, with schema-version checking and path containment.",
+     "pipes": "source",
+     "origin": "new"
+    },
+    {
+     "command": "DEMO",
+     "root": "TOKEN",
+     "purpose": "Emit a deterministic, cross-platform-reproducible 25-token sample analysis with no model call; every record stamped synthetic:true.",
+     "pipes": "source",
+     "origin": "ported:/demologprobs (DemoLogProbsCommand)"
+    },
+    {
+     "command": "DIFF",
+     "root": "TOKEN",
+     "purpose": "Compare two analyses token by token with text or index alignment, reporting per-position probability shift, band change, alternatives gained/lost, and a summary with perplexity delta.",
+     "pipes": "filter (piped stream is the 'against' side; baseline named as an ordered parameter)",
+     "origin": "new"
+    }
+   ],
+   "environmentKeys": [
+    "TOKEN_CAPTURE",
+    "TOKEN_TOPK",
+    "TOKEN_MODE",
+    "TOKEN_LAYOUT",
+    "TOKEN_GRIDMAXALT",
+    "TOKEN_SAMPLESIZE",
+    "TOKEN_MAXGEN",
+    "TOKEN_CONTEXT",
+    "TOKEN_LOWCONF",
+    "TOKEN_EXPORTDIR",
+    "TOKEN_LAST",
+    "TOKEN_LASTEXPORT",
+    "TOKEN_KEEP",
+    "PROVIDER",
+    "MODELID",
+    "TEMPERATURE",
+    "MAXTOKENS"
+   ],
+   "newBeyondSource": [
+    "Derived statistics the source never computed: per-step truncated top-K entropy (nats or bits), normalized entropy, perplexity, mean negative log-likelihood, chosen-vs-runner-up margin, confidence-band counts and low-confidence ratio (TOKEN STATS)",
+    "A composable confidence filter with -below/-above/-band/-marginbelow/-range plus the source's sampling rule and an opt-in -dedupe (TOKEN FILTER)",
+    "Reading an exported analysis back in (TOKEN LOAD), which the source had no path for at all \u2014 this is what makes the whole package testable and runnable with no model, network or backend",
+    "Comparing two analyses token by token with text or index alignment (TOKEN DIFF)",
+    "Real export: the source's export-analysis was a stub that returned success and wrote no file; EXPORT actually writes json/jsonl/csv/md, prompts before overwrite, and offers -redact to share numbers without content",
+    "A stable analysis document schema (analysis/token/attribution/stats/diff records, one JSON object per pipeline chunk) with schemaVersion, analysis ids and a bounded process-scoped ring of the last N analyses, replacing the source's single mutable list cleared at every generation",
+    "No-fabrication guarantee: where the source silently substituted synthetic probability data when a provider returned none (and its own tests pinned that behaviour), the rebuild emits zero token records plus a stated reason; only TOKEN DEMO fabricates, and every record it emits is stamped synthetic:true",
+    "One probability scale (0-1 internally, percent at the edge) and one indexing rule (0-based document, 1-based display), replacing the source's three incompatible scales, doubled '%%' and mixed 0-/1-based surfaces",
+    "Cross-platform determinism for the demonstration data (documented 64-bit xorshift instead of the platform RNG seeded 42) and invariant-culture number formatting throughout",
+    "A pipeline-safe consent gate: io.PromptForCommand when interactive, -yes when piped, instead of the source's blocking Console.ReadLine that had no console under a terminal UI",
+    "Named attribution methods (recency/attention/gradient) with a real normalized recency weight, replacing the source's hard-coded constant InfluenceScore of 0.8",
+    "-context, -temperature, -seed, -nobos, -samplesize, -maxgen, -lowconf, -print, -redact, -force, -dedupe, -invert, -perstep, -stopafter, -as parameters",
+    "Pure-managed, trim/AOT-safe package with no native dependency and no reflection, so it is safe to load under AssemblySecurityPolicy.Strict \u2014 correcting the source's reflection-based logit accessor that failed silently under its own publish profile and reported 100% confidence in everything"
+   ],
+   "openDesignQuestions": [
+    "Sibling package names and root commands are assumed, not confirmed: ChatDbg.Tools.Providers (AI), ChatDbg.Tools.Rendering (RENDER), ChatDbg.Tools.Settings (CONFIG), ChatDbg.Tools.History (CHAT), ChatDbg.Tools.Diagnostics (LOG). If the other chapters chose different names or roots, \u00a76.1 and the compositions in \u00a76.4 need to be reconciled.",
+    "How does a plugin-loaded command reach host services? Xcaciv.Command's CommandFactory activates ALC-loaded plugin commands via a public parameterless constructor with no DI injection, so I specified a shared ChatDbg.Introspection.Abstractions assembly in the default load context plus a static IntrospectionServices registry. The architect should confirm this is the product-wide pattern rather than a per-package invention.",
+    "Environment seeding for sub-commands is unverified: CommandController.Run derives the command name from the first token, so a child environment is built as GetChild(\"TOKEN\") and only the TOKEN bucket is copied, while CommandRegistry.GetEnvironment seeds per-registered-command buckets (and would try to instantiate the synthetic root, whose FullTypeName is empty). Every tool therefore supplies its own in-code fallback defaults; whether the framework actually seeds anything for sub-commands should be tested against 3.3.4.",
+    "Command-line file paths are unusable in this framework (the argument tokenizer strips backslash, forward slash, colon, equals inside quotes as well as outside), so EXPORT/LOAD take a filename stem resolved against TOKEN_EXPORTDIR. If the product needs arbitrary destinations, the host must add a path-alias mechanism \u2014 this is a product-wide decision, not a package-local one.",
+    "Whether the settings-dialog clamp semantics survive: the source rejected out-of-range top-K from commands but silently clamped in the GUI settings dialog (1-20). This chapter rejects everywhere; if the rebuilt GUI reintroduces a dialog, the divergence must be resolved in one direction.",
+    "Whether the source's verbatim user-visible strings should be preserved character-for-character where they contain defects, e.g. 'Error: Response text expected, none recieved.' (misspelling) and 'Unknown subcommand: {arg}. ' (trailing space). This chapter preserves the trailing space and drops the misspelling by not carrying that string; the product needs one policy.",
+    "Whether the truncated top-K entropy should be reported at all, given it is only a lower bound on the true distribution's entropy. The alternative is to report it only when the backend can supply full-vocabulary logits. Currently it is always reported with entropyIsTruncated:true.",
+    "Attribution beyond the recency heuristic: -method attention and -method gradient are declared and refuse when unavailable, but no backend contract for attention export or gradient attribution is specified here. Whoever owns ChatDbg.Tools.Providers must decide whether IAttributionModel is real or the two methods should be dropped from the allow-list.",
+    "Whether TOKEN INSPECT should exist at all given SPLIT + MAP + ATTRIBUTE compose to the same thing. It is kept for source parity and for the single-model-load optimisation, but it is the one tool in the catalog that is pure convenience.",
+    "Analysis retention: TOKEN_KEEP defaults to 8 in-memory analyses. Whether analyses should instead be written through to TOKEN_EXPORTDIR automatically (making the ring a cache rather than the store) is undecided and affects TOKEN DIFF's ergonomics."
+   ]
+  },
+  {
+   "tools": [
+    {
+     "command": "PKG SEARCH",
+     "root": "PKG",
+     "purpose": "Search a package feed for installable tool packages; quiet/normal/detailed rows, take clamped to 1-100, HTTPS-only sources.",
+     "pipes": "source (refuses piped input; emits one chunk per result row)",
+     "origin": "ported:Xcaciv.Command.Packages/SearchCommand (Cupcake ref-cupcake \u00a77)"
+    },
+    {
+     "command": "PKG INSTALL",
+     "root": "PKG",
+     "purpose": "Download to quarantine, re-read identity from the artefact, verify signature and digests, extract safely into {root}/{id}/{version}/bin, record digests; installs SANDBOXED, never trusted.",
+     "pipes": "filter (one chunk = one quoted id[@version]; one verdict chunk per input)",
+     "origin": "ported:Xcaciv.Command.Packages/InstallCommand + NugetWrapper.InstallPackage (both stubs in Cupcake; steps 5-10 are new)"
+    },
+    {
+     "command": "PKG LIST",
+     "root": "PKG",
+     "purpose": "Enumerate installed packages with version, trust level, load state, root, command count; -fields id emits the identity shape every other tool consumes.",
+     "pipes": "source (one chunk per package; JSON/CSV result format)",
+     "origin": "new"
+    },
+    {
+     "command": "PKG SHOW",
+     "root": "PKG",
+     "purpose": "Manifest, declared commands (metadata-only), files with digest prefixes, trust record and dependency probe paths for one package - the evidence for a trust decision.",
+     "pipes": "filter (one chunk = one id[@version])",
+     "origin": "new"
+    },
+    {
+     "command": "PKG VERIFY",
+     "root": "PKG",
+     "purpose": "Re-hash installed packages against the trust allowlist and re-check signatures; reports changed/missing/unknown/signature-failed before it becomes a failed start.",
+     "pipes": "filter (one chunk = one id; unhealthy verdicts are failure chunks)",
+     "origin": "new"
+    },
+    {
+     "command": "PKG UPDATE",
+     "root": "PKG",
+     "purpose": "Check for and apply newer versions within a semver bound, installing beside the current version with rollback retention; an update always resets trust to sandboxed.",
+     "pipes": "filter (-check emits bare ids re-consumable by the same tool)",
+     "origin": "new"
+    },
+    {
+     "command": "PKG REMOVE",
+     "root": "PKG",
+     "purpose": "Uninstall a package, purge its digest and trust records, defer file deletion when assemblies are locked; destructive, typed confirmation.",
+     "pipes": "filter (piped removal requires -force)",
+     "origin": "new"
+    },
+    {
+     "command": "PKG TRUST",
+     "root": "PKG",
+     "purpose": "Interactively grant a verified package the environment-modifying rights its manifest declares, recorded against a named digest and signature.",
+     "pipes": "not-pipeable (in either direction; no -force exists)",
+     "origin": "new"
+    },
+    {
+     "command": "PKG UNTRUST",
+     "root": "PKG",
+     "purpose": "Revoke a grant, optionally drop the digest allowlist entries or block the package from loading entirely.",
+     "pipes": "filter (mass revocation with -force)",
+     "origin": "new"
+    },
+    {
+     "command": "PKG SOURCE",
+     "root": "PKG",
+     "purpose": "List, add, remove, select, test and map package feeds; enforces HTTPS, requires a package-source mapping per feed, stores credential slot names never secrets.",
+     "pipes": "filter for ADD (one chunk = the feed URL, the only lossless channel), source for LIST, refuses input elsewhere",
+     "origin": "new"
+    },
+    {
+     "command": "PKG RELOAD",
+     "root": "PKG",
+     "purpose": "Verify and re-scan the package roots, ask the host to register newly present packages, and report the honest diff including what stays registered until restart.",
+     "pipes": "source (refuses piped input)",
+     "origin": "new"
+    },
+    {
+     "command": "PKG DOCTOR",
+     "root": "PKG",
+     "purpose": "Run fifteen path, layout, digest, signature, metadata, TFM/RID and manifest checks - without loading any package code - to explain why a package was silently skipped.",
+     "pipes": "filter (one chunk per finding; errors are failure chunks)",
+     "origin": "new"
+    },
+    {
+     "command": "PKG LOCK",
+     "root": "PKG",
+     "purpose": "Write, check or restore a portable lockfile of package identities and relative-path content digests; regenerates the machine-local absolute-path hash store on restore.",
+     "pipes": "filter (CHECK emits drifted/missing ids straight into PKG INSTALL)",
+     "origin": "new"
+    }
+   ],
+   "environmentKeys": [
+    "CHATDBG_PKG_SOURCE",
+    "CHATDBG_PKG_PRERELEASE",
+    "CHATDBG_PKG_NETWORK",
+    "CHATDBG_PKG_TIMEOUT",
+    "CHATDBG_PKG_SIGNATURE_POLICY",
+    "CHATDBG_PKG_QUARANTINE_DIR",
+    "CHATDBG_PKG_LOCK_PATH",
+    "CHATDBG_PKG_COUNT",
+    "CHATDBG_PKG_LOADED",
+    "CHATDBG_PKG_RELOAD_PENDING",
+    "CHATDBG_PKG_LAST_VERIFY",
+    "CHATDBG_PACKAGE_DIR",
+    "CHATDBG_USER_PACKAGE_DIR",
+    "CHATDBG_ALLOW_USER_PACKAGES",
+    "CHATDBG_TRUST_STORE",
+    "CHATDBG_DATA_ROOT",
+    "CHATDBG_OUTPUT_FORMAT",
+    "CHATDBG_FRONTEND",
+    "CHATDBG_VERBOSE",
+    "SEARCH_TAKE",
+    "SEARCH_VERBOSITY",
+    "VERIFY_LAST",
+    "NUGET_LOCAL_PACKAGES",
+    "HTTPS_PROXY",
+    "NO_PROXY"
+   ],
+   "openDesignQuestions": [
+    "Who owns the operator identity recorded in a trust grant? The host knows only an OS user name; a shared machine or a service account makes 'who granted this' ambiguous, and the chapter assumes the host can supply something better than the process account.",
+    "Should PKG RELOAD attempt a real collectible-ALC unload at all? The chapter deliberately never claims one (unload is terminal, returns four indistinguishable falses, and CommandExecutor does not dispose command instances). If the host later holds every plugin reference behind a single draining wrapper, a genuine hot-swap becomes possible and PKG RELOAD's contract would change.",
+    "Package signature verification on Linux has no platform code-signature analogue; the design drops the policy from require to prefer with a warning. Is a detached-signature scheme over the package manifest (operator-supplied trusted keys) worth specifying, or does that duplicate what the feed's own package signing already provides?",
+    "-deps allow acquires a transitive closure, but Xcaciv.Loader does not confine dependency loads to basePathRestriction. Should PKG instead flatten and rewrite deps.json at install time, or refuse any package whose deps.json probes outside its own directory?",
+    "Whether PKG should be able to install into the system package root at all under an explicit elevated-install mode, or whether that must remain entirely out-of-band deployment tooling as specified here.",
+    "The lockfile records feed names, but a name is machine-local. A shared lockfile referencing feed 'corp' restores only if the receiving machine has a feed by that name; embedding the URL instead would make the lockfile a redirection vector. The chapter chose names - this trade-off is worth a second opinion."
+   ],
+   "newBeyondSource": [
+    "A runtime extension mechanism of any kind: the source product had none - 18 command classes were new-ed by hand into a Dictionary<string, ICommand> in each shell, and three were never registered at all.",
+    "Package acquisition that actually completes: download, artefact-identity re-read, safe extraction, digest recording and placement into the crawler's {id}/{version}/bin layout (Cupcake downloads and then leaves extraction and dependency resolution as TODOs).",
+    "An explicit four-state trust model (quarantined / blocked / sandboxed / trusted) with an interactive, unforceable, non-pipeable grant that requires typing back the package id and a SHA-256 prefix.",
+    "Publisher-identity verification (package signature, plus platform code-signature where one exists), which Xcaciv.Loader never performs - it verifies bytes, not provenance.",
+    "An allowlist-first integrity posture: digests recorded at install, re-checkable on demand (PKG VERIFY), with learning mode never enabled in production.",
+    "Inventory and introspection - what is installed, what is loaded, what each package registers and what rights it asked for - none of which exists anywhere in the source or in Cupcake.",
+    "Update and rollback with a semver bound, side-by-side installation, retained previous versions, and a mandatory trust reset on every version change.",
+    "Uninstall that also purges digest and trust records, with deferred deletion when assemblies are locked and an honest statement that unload is not guaranteed.",
+    "Feed management: named sources, mandatory package-source mapping, mandatory HTTPS, a per-request timeout (Cupcake's wrapper passes CancellationToken.None everywhere), and credential-slot indirection so a feed token is never stored by this package.",
+    "A diagnostic tool (PKG DOCTOR) whose whole purpose is converting the loading stack's three layers of silent skipping into named findings, without loading any package code.",
+    "A portable lockfile keyed by relative paths and content digests, which regenerates the loader's non-portable absolute-path hash store on the target machine at restore time.",
+    "Hot re-scan (PKG RELOAD) that closes Cupcake's parked search -> install -> reload loop, and reports precisely which half of it the runtime cannot deliver.",
+    "Audit records for every supply-chain act (PackageVerified, PackageRejected, TrustGrant, TrustRevoked, PackageBlocked, HashMismatch, PolicyWeakened, PackagesReloaded), with digests reported only as prefixes and expected/actual pairs kept out of the user-readable trail."
+   ],
+   "wroteFile": true
+  }
+ ]
+}
