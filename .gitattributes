@@ -1,0 +1,33 @@
+# Normalize all text files to LF in the repository.
+# Git converts to the platform's native endings on checkout where a rule below
+# asks for it; everything else stays LF on disk, on Windows included.
+* text=auto eol=lf
+
+# Visual Studio writes solution files with CRLF and a BOM. Keep that.
+*.sln text eol=crlf
+
+# Explicit rules for the file types this repository actually tracks, so a new
+# file gets the right treatment without relying on content sniffing.
+*.cs        text eol=lf diff=csharp
+*.csproj    text eol=lf
+*.props     text eol=lf
+*.targets   text eol=lf
+*.ps1       text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.txt       text eol=lf
+*.lutconfig text eol=lf
+
+# Never touch these if any are added later.
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.dll  binary
+*.exe  binary
+*.pfx  binary
+*.snk  binary
