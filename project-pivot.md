@@ -40,8 +40,11 @@ Each command (used as a tool) will be given a new method on the interface called
 ## epic use cases
 There are several end user packages and components of Cupcake. **No cupcake agent** supports console command execution (ex. cmd, pwrsh, bash, sh...)
 
-### Cupcake Sommelier (Xcaciv.Cupcake.Sommelier.NuGet, Xcaciv.Cupcake.Sommelier.Web)
-The Command Packages nuget server. Mimic Nuget.org functionality with user registration and package submittal. (consider forkign Nuget.org on github)
+### Cupcake Sommelier (Xcaciv.Cupcake.Sommelier)
+The Command Packages nuget server. (implemented https://github.com/Xcaciv/Xcaciv.Cupcake.Sommelier)
+
+### Muffin (Xcaciv.Muffin)
+The word picture: a muffin is cupcake without frosting or sprinkels. The technical concept: Muffin is the project that contains all the base 
 
 ### Cupcake Lit (Xcaciv.Cupcake.Lit) 
 The fully modular terminal console version. It's use case starts by being installable via `dotnet tool` command. Then once installed, a user would execute `cupcake_lit` and use the command pacakge installer via built-in restricted Xcaciv Command console to install the llm chat client, agent connector, chatdbg functionality, and commands individually and interactivly from Cupcake Sommelier NuGet server. 
