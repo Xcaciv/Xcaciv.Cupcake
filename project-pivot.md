@@ -38,23 +38,49 @@ The following patterns are important from `ideas/`:
 Each command (used as a tool) will be given a new method on the interface called `AskOrExecute()` that will signify the deafault Agent behavor for the LLM requesting to execute the command, weather it is to ask first or if it is safe to execute the command.
 
 ## epic use cases
-There are several end user packages and components of Cupcake. **No cupcake agent** supports console command execution (ex. cmd, pwrsh, bash, sh...)
+There are several end user packages and components of Cupcake. **No cupcake agent** supports console or shell command execution (ex. cmd, pwrsh, bash, sh...)
 
 ### Cupcake Sommelier (Xcaciv.Cupcake.Sommelier)
 The Command Packages nuget server. (implemented https://github.com/Xcaciv/Xcaciv.Cupcake.Sommelier)
 
-### Muffin (Xcaciv.Muffin)
-The word picture: a muffin is cupcake without frosting or sprinkels. The technical concept: Muffin is the project that contains all the base 
+### Muffin (Xcaciv.Muffin.Interfaces)
+The `Xcaciv.Muffin.Interfaces.IMuffin` is the central interface that unites input and output with Commands. The project contains the base interface structure of Cupcake implementations 
+
+```mermaid
+mindmap
+  root((IMuffin))
+    IInputAdapter
+      Console
+      Web
+      Subscriber
+    IOutputAdapter
+      Console
+      Web
+      Publisher
+    ICommandAdapter
+      CommandControler
+        Command
+```
 
 ### Cupcake Lit (Xcaciv.Cupcake.Lit) 
-The fully modular terminal console version. It's use case starts by being installable via `dotnet tool` command. Then once installed, a user would execute `cupcake_lit` and use the command pacakge installer via built-in restricted Xcaciv Command console to install the llm chat client, agent connector, chatdbg functionality, and commands individually and interactivly from Cupcake Sommelier NuGet server. 
+An implementation of IMuffin
+The terminal console frontended version that supports command packages. It's use case starts by being installable via `dotnet tool` command. Then once installed, a user would execute `cupcake_lit` and use the command pacakge installer via built-in restricted Xcaciv Command console to install commands like the llm client, chatdbg functionality, and other commands individually. Packages would come from the Cupcake Sommelier NuGet feed. 
 
-Cupcake Lit would contain the ability (code namespace Xcaciv.Cupcake.Concierge) to give the user a menu driven or wizard experience to choose and configure Cupcake Command packages (from downloaded nuget packages), download a dotnet template and build a small optimized custom Cupcake binary (aka Concierge Cupcake) that purposly leaves out the plugin architecture, in favor of hardcoded command registration. 
-
-Cupcake lit would have a configurable system prompt that initially focuses on Concierge Cupcake building skills. The `cupcake_lit` TUI would use Terminal.Gui. 
+### Cupcake Concierge (Xcaciv.Cupcake.Concierge)
+An implementation of AbstractCommand
+Cupcake Concierge is a command that has the ability to assemble a custom C# Cupcake project for compilation. The user would choose and configure a grouping of Cupcake Command packages, download a dotnet template and build a small optimized custom Cupcake binary (aka Concierge Cupcake) that purposly leaves out the plugin architecture, in favor of hardcoded command registration. 
 
 ### Concierge Cupcake Agent (Xcaciv.Cupcake.ConciergeAgent)
-Dotnet template project used by Cupcake Lit. The Concierge Cupcake's default system prompt would be set at design time with the available commands. Concierge Cupcakes would support headless, non-ineractive execution of prompts. The Concierge Cupcake would use Spectre.Console.
+Dotnet template project used by Cupcake Lit. The Concierge Cupcake's default system prompt would be set at design time along with the available commands. Concierge Cupcakes would support headless, non-ineractive execution of commands. The Concierge Cupcake would use Spectre.Console.
 
 ### Cupcake Funfetti (Xcaciv.Cupcake.Funfetti) 
-The high polish terminal app (using a highly refined UX via Terminal.Gui) that is intended for agentic code generation. It fully supports the Xcaciv.Command plugin architecture and installing tools (command packages) from Cupcake Sommelier NuGet server via-built in restricted Xcaciv Command console. This coding agent would incorporate opencode-like functionality. It would support configurable agent modes: Build, Plan, Review. These agent modes would each have configrable system prompts and default models.
+An implementation of AbstractCommand
+Funfetti is a special command that is the implementation of the AI chat loop. The base command is "prompt". The text that follows is sent as input to the provider with the rest of the commands sent as tools. The command manages tool execution and returns reslts back. Details of the loop woudl be output as logging.
+
+### Cupcake Muffin Top (Xcaciv.Muffin.Top)
+An implementation of IInputAdapter 
+that accepts another IInputAdapter as the actual frontend. Muffin Top prefixes all input recieved with "prompt " to route all input through Funfetti.
+
+### Cupcake Muffin Top (Xcaciv.Muffin.Top.Console)
+An implementation of IInputAdapter 
+It allows switching between Xcaciv.Muffin.Top and standard console input to commands.
