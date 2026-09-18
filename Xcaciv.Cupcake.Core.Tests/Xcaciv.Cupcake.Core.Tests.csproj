@@ -1,6 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -22,7 +22,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\Xcaciv.Cupcake.Core\Xcaciv.Cupcake.Core.csproj" />
-    <ProjectReference Include="..\src\Xcaciv.Command.Packages\Xcaciv.Command.Packages.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
